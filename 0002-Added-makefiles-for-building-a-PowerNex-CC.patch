@@ -1,4 +1,4 @@
-From 264324a23800c2b065dc8272af6f4503e8b39f0c Mon Sep 17 00:00:00 2001
+From 9ab6241105163816e3bb9e85aab1d5bbd3df1b85 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:06 +0200
 Subject: [PATCH 2/3] Added makefiles for building a PowerNex CC
@@ -13,10 +13,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  create mode 100644 src/powernex.mak
 
 diff --git a/.gitignore b/.gitignore
-index 6f019aeab..8b9e3c134 100644
+index c496bd8d0..fc6692581 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -40,3 +40,4 @@ tags
+@@ -41,3 +41,4 @@ tags
  
  # OSX
  src/optabgen.dSYM/

@@ -1,7 +1,7 @@
 pipeline {
 	agent { dockerfile true }
 	environment {
-		DMD_VERSION = 'v2.074.1'
+		DMD_VERSION = 'v2.075.1'
 	}
 	stages {
 		stage('fetch') {
@@ -23,6 +23,9 @@ pipeline {
 					fi
 
 					pushd dmd
+
+					git config user.name "WildBot"
+					git config user.email "xwildn00bx+wildbot@gmail.com"
 
 					git am <../0001-Added-PowerNex-to-the-backend.patch
 					git am <../0002-Added-makefiles-for-building-a-PowerNex-CC.patch
