@@ -47,6 +47,7 @@ pipeline {
 					sh '''
 					pushd dmd
 					make -f powernex.mak
+					mv powernex-dmd ../
 					popd
 					'''
         }
@@ -60,7 +61,7 @@ pipeline {
 						setGitHubPullRequestStatus state: 'PENDING', context: "${env.JOB_NAME}", message: "Archiving powernex-dmd"
 				}
 				ansiColor('xterm') {
-					archiveArtifacts artifacts: 'dmd/powernex-dmd', fingerprint: true
+					archiveArtifacts artifacts: 'powernex-dmd', fingerprint: true
 				}
 			}
 		}
