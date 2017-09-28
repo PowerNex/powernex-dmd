@@ -1,4 +1,4 @@
-From a5432c41af6961b4adda04da98a68d5617bfffb8 Mon Sep 17 00:00:00 2001
+From e61c30cf1e8adca12566cb1d5623429330673e19 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:44 +0200
 Subject: [PATCH 3/3] Force PowerNex to be the target
@@ -9,10 +9,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/ddmd/globals.d b/src/ddmd/globals.d
-index 922c5baf3..739d76f90 100644
+index 88aafcc8f..f05b6df83 100644
 --- a/src/ddmd/globals.d
 +++ b/src/ddmd/globals.d
-@@ -18,7 +18,7 @@ import ddmd.root.outbuffer;
+@@ -20,7 +20,7 @@ import ddmd.root.outbuffer;
  
  template xversion(string s)
  {
