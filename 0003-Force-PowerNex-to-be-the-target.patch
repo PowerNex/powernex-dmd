@@ -1,7 +1,7 @@
-From e61c30cf1e8adca12566cb1d5623429330673e19 Mon Sep 17 00:00:00 2001
+From f6e9407181b537a4097750b3971e8d7ae3431148 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:44 +0200
-Subject: [PATCH 3/3] Force PowerNex to be the target
+Subject: [PATCH 3/4] Force PowerNex to be the target
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---

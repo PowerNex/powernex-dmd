@@ -30,6 +30,7 @@ pipeline {
 					git am <../0001-Added-PowerNex-to-the-backend.patch
 					git am <../0002-Added-makefiles-for-building-a-PowerNex-CC.patch
 					git am <../0003-Force-PowerNex-to-be-the-target.patch
+					git am <../0004-Added-PowerNex-reminders-to-the-version-output.patch
 
 					popd
 					'''
