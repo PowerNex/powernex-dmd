@@ -1,53 +1,52 @@
-From 2c70c6002c40742af7482eb24df004566c7f18f3 Mon Sep 17 00:00:00 2001
+From 8e24aab36f258a20bb43d97d5baab02bbe5870f7 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
-Date: Fri, 25 Aug 2017 02:11:14 +0200
+Date: Tue, 30 Jan 2018 22:39:14 +0100
 Subject: [PATCH 1/4] Added PowerNex to the backend
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
- src/ddmd/backend/backconfig.c            | 23 +++++++++++++++++++----
- src/ddmd/backend/cc.h                    |  4 ++--
- src/ddmd/backend/cdef.d                  |  4 +++-
- src/ddmd/backend/cdef.h                  | 26 ++++++++++++++++++++------
- src/ddmd/backend/cgcod.c                 |  2 +-
- src/ddmd/backend/cgelem.c                |  2 +-
- src/ddmd/backend/cgen.c                  |  2 +-
- src/ddmd/backend/cod1.c                  | 31 ++++++++++++++++---------------
- src/ddmd/backend/cod2.c                  |  6 +++---
- src/ddmd/backend/cod3.c                  | 24 ++++++++++++------------
- src/ddmd/backend/cod4.c                  |  6 +++---
- src/ddmd/backend/code_stub.h             |  2 +-
- src/ddmd/backend/code_x86.h              |  2 +-
- src/ddmd/backend/el.c                    | 14 +++++++-------
- src/ddmd/backend/elfobj.c                |  6 ++++--
- src/ddmd/backend/global.h                |  2 +-
- src/ddmd/backend/machobj.c               |  6 +++---
- src/ddmd/backend/obj.h                   |  2 +-
- src/ddmd/backend/optabgen.c              |  2 +-
- src/ddmd/backend/out.c                   |  2 +-
- src/ddmd/backend/token.h                 |  4 ++--
- src/ddmd/backend/ty.h                    |  6 +++---
- src/ddmd/backend/var.c                   |  2 +-
- src/ddmd/cond.d                          |  1 +
- src/ddmd/e2ir.d                          |  5 +++--
- src/ddmd/globals.d                       | 10 ++++++----
- src/ddmd/globals.h                       |  1 +
- src/ddmd/lib.d                           |  4 ++--
- src/ddmd/mars.d                          | 21 ++++++++++++++++-----
- src/ddmd/mars.h                          |  2 ++
- src/ddmd/target.d                        | 21 +++++++++++++--------
- src/ddmd/toir.d                          |  6 +++---
- test/fail_compilation/reserved_version.d |  4 +++-
- 33 files changed, 157 insertions(+), 98 deletions(-)
+ src/dmd/backend/backconfig.c             | 23 +++++++++++++++++++----
+ src/dmd/backend/cc.h                     |  4 ++--
+ src/dmd/backend/cdef.d                   |  4 +++-
+ src/dmd/backend/cdef.h                   | 26 ++++++++++++++++++++------
+ src/dmd/backend/cgcod.c                  |  2 +-
+ src/dmd/backend/cgelem.c                 |  2 +-
+ src/dmd/backend/cod1.c                   | 29 +++++++++++++++--------------
+ src/dmd/backend/cod2.c                   |  6 +++---
+ src/dmd/backend/cod3.c                   | 24 ++++++++++++------------
+ src/dmd/backend/cod4.c                   |  6 +++---
+ src/dmd/backend/code_stub.h              |  2 +-
+ src/dmd/backend/code_x86.h               |  2 +-
+ src/dmd/backend/el.c                     | 14 +++++++-------
+ src/dmd/backend/elfobj.c                 |  6 ++++--
+ src/dmd/backend/global.h                 |  2 +-
+ src/dmd/backend/machobj.c                |  6 +++---
+ src/dmd/backend/obj.h                    |  2 +-
+ src/dmd/backend/optabgen.c               |  2 +-
+ src/dmd/backend/out.c                    |  2 +-
+ src/dmd/backend/token.h                  |  4 ++--
+ src/dmd/backend/ty.h                     |  6 +++---
+ src/dmd/backend/var.c                    |  2 +-
+ src/dmd/cond.d                           |  1 +
+ src/dmd/e2ir.d                           |  5 +++--
+ src/dmd/globals.d                        | 10 ++++++----
+ src/dmd/globals.h                        |  1 +
+ src/dmd/lib.d                            |  4 ++--
+ src/dmd/mars.d                           | 21 ++++++++++++++++-----
+ src/dmd/mars.h                           |  2 ++
+ src/dmd/target.d                         | 21 +++++++++++++--------
+ src/dmd/toir.d                           |  6 +++---
+ test/fail_compilation/reserved_version.d |  3 +++
+ 32 files changed, 155 insertions(+), 95 deletions(-)
 
-diff --git a/src/ddmd/backend/backconfig.c b/src/ddmd/backend/backconfig.c
-index ee97662c1..40fc5926e 100644
---- a/src/ddmd/backend/backconfig.c
-+++ b/src/ddmd/backend/backconfig.c
+diff --git a/src/dmd/backend/backconfig.c b/src/dmd/backend/backconfig.c
+index 14fe073f7..e56a21b16 100644
+--- a/src/dmd/backend/backconfig.c
++++ b/src/dmd/backend/backconfig.c
 @@ -196,6 +196,21 @@ void out_config_init(
          config.flags3 |= CFG3pic;
      config.objfmt = OBJ_ELF;
-     config.ehmethod = EH_DM;
+     config.ehmethod = betterC ? EH_NONE : EH_DM;
 +#endif
 +#if TARGET_POWERNEX
 +		// Based on TARGET_LINUX
@@ -102,10 +101,10 @@ index ee97662c1..40fc5926e 100644
      _tyalignsize[TYldouble] = 16;
      _tyalignsize[TYildouble] = 16;
      _tyalignsize[TYcldouble] = 16;
-diff --git a/src/ddmd/backend/cc.h b/src/ddmd/backend/cc.h
-index ea7a310c3..9b3918495 100644
---- a/src/ddmd/backend/cc.h
-+++ b/src/ddmd/backend/cc.h
+diff --git a/src/dmd/backend/cc.h b/src/dmd/backend/cc.h
+index 10ed38b33..f0f8fcc47 100644
+--- a/src/dmd/backend/cc.h
++++ b/src/dmd/backend/cc.h
 @@ -77,7 +77,7 @@ enum WM
          WM_badnumber    = 24,
          WM_ccast        = 25,
@@ -124,11 +123,11 @@ index ea7a310c3..9b3918495 100644
  #include        "../tk/mem.h"
  #else
  #include        "mem.h"
-diff --git a/src/ddmd/backend/cdef.d b/src/ddmd/backend/cdef.d
-index 906ecf127..46a7ec7cf 100644
---- a/src/ddmd/backend/cdef.d
-+++ b/src/ddmd/backend/cdef.d
-@@ -499,6 +499,7 @@ enum
+diff --git a/src/dmd/backend/cdef.d b/src/dmd/backend/cdef.d
+index 1721d29af..ed2b0f40b 100644
+--- a/src/dmd/backend/cdef.d
++++ b/src/dmd/backend/cdef.d
+@@ -500,6 +500,7 @@ enum
      EX_SOLARIS64    = 0x200000,
      EX_OPENBSD      = 0x400000,
      EX_OPENBSD64    = 0x800000,
@@ -136,20 +135,20 @@ index 906ecf127..46a7ec7cf 100644
  }
  
  
-@@ -506,7 +507,8 @@ enum
+@@ -507,7 +508,8 @@ enum
  enum exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
                           EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 |
                           EX_OPENBSD | EX_OPENBSD64 |
 -                         EX_SOLARIS | EX_SOLARIS64;
 +                         EX_SOLARIS | EX_SOLARIS64 |
-+	                       EX_POWERNEX64;
++                         EX_POWERNEX64;
  
  // All DOS executable types
  enum exefmt_t EX_dos =  EX_DOSX | EX_ZPM | EX_RATIONAL | EX_PHARLAP |
-diff --git a/src/ddmd/backend/cdef.h b/src/ddmd/backend/cdef.h
-index b0e8d0ad4..8ec898c56 100644
---- a/src/ddmd/backend/cdef.h
-+++ b/src/ddmd/backend/cdef.h
+diff --git a/src/dmd/backend/cdef.h b/src/dmd/backend/cdef.h
+index 5f81c2210..d9b3c34f7 100644
+--- a/src/dmd/backend/cdef.h
++++ b/src/dmd/backend/cdef.h
 @@ -27,6 +27,7 @@
          __FreeBSD__     FreeBSD
          __OpenBSD__     OpenBSD
@@ -222,7 +221,7 @@ index b0e8d0ad4..8ec898c56 100644
  
  #define TOOLKIT_H
  
-@@ -736,6 +748,7 @@ enum
+@@ -737,6 +749,7 @@ enum
      EX_SOLARIS64    = 0x200000,
      EX_OPENBSD      = 0x400000,
      EX_OPENBSD64    = 0x800000,
@@ -230,7 +229,7 @@ index b0e8d0ad4..8ec898c56 100644
  };
  
  
-@@ -743,7 +756,8 @@ enum
+@@ -744,7 +757,8 @@ enum
  const exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
                           EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 |
                           EX_OPENBSD | EX_OPENBSD64 |
@@ -240,11 +239,11 @@ index b0e8d0ad4..8ec898c56 100644
  
  // All DOS executable types
  const exefmt_t EX_dos =  EX_DOSX | EX_ZPM | EX_RATIONAL | EX_PHARLAP |
-diff --git a/src/ddmd/backend/cgcod.c b/src/ddmd/backend/cgcod.c
-index 0769d094a..0c77211e5 100644
---- a/src/ddmd/backend/cgcod.c
-+++ b/src/ddmd/backend/cgcod.c
-@@ -2530,7 +2530,7 @@ reload:                                 /* reload result from memory    */
+diff --git a/src/dmd/backend/cgcod.c b/src/dmd/backend/cgcod.c
+index 8682df3c5..77c621636 100644
+--- a/src/dmd/backend/cgcod.c
++++ b/src/dmd/backend/cgcod.c
+@@ -2543,7 +2543,7 @@ reload:                                 /* reload result from memory    */
          case OPrelconst:
              cdrelconst(cdb,e,pretregs);
              break;
@@ -253,11 +252,11 @@ index 0769d094a..0c77211e5 100644
          case OPgot:
              cdgot(cdb,e,pretregs);
              break;
-diff --git a/src/ddmd/backend/cgelem.c b/src/ddmd/backend/cgelem.c
-index c381a70c7..e4cd86eef 100644
---- a/src/ddmd/backend/cgelem.c
-+++ b/src/ddmd/backend/cgelem.c
-@@ -5009,7 +5009,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
+diff --git a/src/dmd/backend/cgelem.c b/src/dmd/backend/cgelem.c
+index f2712a016..7d3e51bc0 100644
+--- a/src/dmd/backend/cgelem.c
++++ b/src/dmd/backend/cgelem.c
+@@ -5040,7 +5040,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
  
  #endif
  
@@ -266,24 +265,11 @@ index c381a70c7..e4cd86eef 100644
  
      assert(I64); // va_start is not an intrinsic on 32-bit
      // (OPva_start &va)
-diff --git a/src/ddmd/backend/cgen.c b/src/ddmd/backend/cgen.c
-index 60a5a2943..755c17897 100644
---- a/src/ddmd/backend/cgen.c
-+++ b/src/ddmd/backend/cgen.c
-@@ -951,7 +951,7 @@ void searchfixlist(symbol *s)
-                 // resolve directly.
-                 if (s->Sseg == p->Lseg &&
-                     (s->Sclass == SCstatic ||
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
-                      (!(config.flags3 & CFG3pic) && s->Sclass == SCglobal)) &&
- #else
-                         s->Sclass == SCglobal) &&
-diff --git a/src/ddmd/backend/cod1.c b/src/ddmd/backend/cod1.c
-index b5b47cd66..b26dcce82 100644
---- a/src/ddmd/backend/cod1.c
-+++ b/src/ddmd/backend/cod1.c
-@@ -1265,7 +1265,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
+diff --git a/src/dmd/backend/cod1.c b/src/dmd/backend/cod1.c
+index 6f2394d4c..105ae7542 100644
+--- a/src/dmd/backend/cod1.c
++++ b/src/dmd/backend/cod1.c
+@@ -1285,7 +1285,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
      case FLextern:
          if (s->Sident[0] == '_' && memcmp(s->Sident + 1,"tls_array",10) == 0)
          {
@@ -292,7 +278,7 @@ index b5b47cd66..b26dcce82 100644
              // Rewrite as GS:[0000], or FS:[0000] for 64 bit
              if (I64)
              {
-@@ -1309,7 +1309,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
+@@ -1329,7 +1329,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
      case FLcsdata:
      case FLgot:
      case FLgotoff:
@@ -301,7 +287,7 @@ index b5b47cd66..b26dcce82 100644
      case FLtlsdata:
  #endif
      L3:
-@@ -1863,11 +1863,12 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1889,11 +1889,12 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
          clib_inited = true;
      }
  
@@ -319,7 +305,7 @@ index b5b47cd66..b26dcce82 100644
  
      ClibInfo *cinfo = &clibinfo[clib];
      symbol *s = clibsyms[clib];
-@@ -1892,7 +1893,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1918,7 +1919,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBldiv:
                  cinfo->retregs16 = mDX|mAX;
@@ -328,7 +314,7 @@ index b5b47cd66..b26dcce82 100644
                  {
                      s = symboly("__divdi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1918,7 +1919,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1945,7 +1946,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBlmod:
                  cinfo->retregs16 = mCX|mBX;
@@ -337,7 +323,7 @@ index b5b47cd66..b26dcce82 100644
                  {
                      s = symboly("__moddi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1944,7 +1945,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1972,7 +1973,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBuldiv:
                  cinfo->retregs16 = mDX|mAX;
@@ -346,7 +332,7 @@ index b5b47cd66..b26dcce82 100644
                  {
                      s = symboly("__udivdi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1970,7 +1971,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1999,7 +2000,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBulmod:
                  cinfo->retregs16 = mCX|mBX;
@@ -355,16 +341,7 @@ index b5b47cd66..b26dcce82 100644
                  {
                      s = symboly("__umoddi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -2531,7 +2532,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
-   else
-   {
-         code *cgot = NULL;
--        if (config.exe & (EX_LINUX | EX_FREEBSD | EX_OPENBSD | EX_SOLARIS))
-+        if (config.exe & (EX_LINUX | EX_FREEBSD | EX_OPENBSD | EX_SOLARIS | EX_POWERNEX64))
-         {
-             // Note: not for OSX
-             /* Pass EBX on the stack instead, this is because EBX is used
-@@ -2556,7 +2557,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
+@@ -2572,7 +2573,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
          }
          if (pushebx)
          {
@@ -373,7 +350,7 @@ index b5b47cd66..b26dcce82 100644
              {
                  cdb.gen1(0x50 + CX);                             // PUSH ECX
                  cdb.gen1(0x50 + BX);                             // PUSH EBX
-@@ -3374,7 +3375,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -3409,7 +3410,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
                  fl = el_fl(e1);
              if (tym1 == TYifunc)
                  cdbe.gen1(0x9C);                             // PUSHF
@@ -382,20 +359,20 @@ index b5b47cd66..b26dcce82 100644
              assert(!farfunc);
              if (s != tls_get_addr_sym)
              {
-@@ -3413,7 +3414,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -3448,7 +3449,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
          tym_t e11ty = tybasic(e11->Ety);
          assert(!I16 || (e11ty == (farfunc ? TYfptr : TYnptr)));
-         cdb.append(load_localgot());
+         load_localgot(cdb);
 -#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
 +#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (config.flags3 & CFG3pic && I32)
              keepmsk |= mBX;
  #endif
-diff --git a/src/ddmd/backend/cod2.c b/src/ddmd/backend/cod2.c
-index c83bce56f..a7d113fbd 100755
---- a/src/ddmd/backend/cod2.c
-+++ b/src/ddmd/backend/cod2.c
-@@ -908,7 +908,7 @@ void cdmul(CodeBuilder& cdb,elem *e,regm_t *pretregs)
+diff --git a/src/dmd/backend/cod2.c b/src/dmd/backend/cod2.c
+index eecbba919..89424cd5b 100755
+--- a/src/dmd/backend/cod2.c
++++ b/src/dmd/backend/cod2.c
+@@ -909,7 +909,7 @@ void cdmul(CodeBuilder& cdb,elem *e,regm_t *pretregs)
              orthxmm(cdb,e,pretregs);
              return;
          }
@@ -404,7 +381,7 @@ index c83bce56f..a7d113fbd 100755
          orth87(cdb,e,pretregs);
  #else
          opdouble(cdb,e,pretregs,(oper == OPmul) ? CLIBdmul : CLIBddiv);
-@@ -4144,7 +4144,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
+@@ -4145,7 +4145,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
          goto L4;
  
      case FLtlsdata:
@@ -413,7 +390,7 @@ index c83bce56f..a7d113fbd 100755
      {
        L5:
          if (config.flags3 & CFG3pic)
-@@ -4270,7 +4270,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
+@@ -4271,7 +4271,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
          goto L4;
  
      case FLextern:
@@ -422,11 +399,11 @@ index c83bce56f..a7d113fbd 100755
          if (e->EV.sp.Vsym->ty() & mTYthread)
              goto L5;
  #endif
-diff --git a/src/ddmd/backend/cod3.c b/src/ddmd/backend/cod3.c
-index 0bda39538..646d2d711 100644
---- a/src/ddmd/backend/cod3.c
-+++ b/src/ddmd/backend/cod3.c
-@@ -629,7 +629,7 @@ regm_t regmask(tym_t tym, tym_t tyf)
+diff --git a/src/dmd/backend/cod3.c b/src/dmd/backend/cod3.c
+index 9c1631a4a..6e0293836 100644
+--- a/src/dmd/backend/cod3.c
++++ b/src/dmd/backend/cod3.c
+@@ -631,7 +631,7 @@ regm_t regmask(tym_t tym, tym_t tyf)
              return mST0;
  
          case TYcfloat:
@@ -435,7 +412,7 @@ index 0bda39538..646d2d711 100644
              if (I32 && tybasic(tyf) == TYnfunc)
                  return mDX | mAX;
  #endif
-@@ -1435,7 +1435,7 @@ void doswitch(CodeBuilder& cdb, block *b)
+@@ -1446,7 +1446,7 @@ void doswitch(CodeBuilder& cdb, block *b)
          regm_t retregs = IDXREGS;
          if (dword)
              retregs |= mMSW;
@@ -444,7 +421,7 @@ index 0bda39538..646d2d711 100644
          if (I32 && config.flags3 & CFG3pic)
              retregs &= ~mBX;                            // need EBX for GOT
  #endif
-@@ -1633,7 +1633,7 @@ void doswitch(CodeBuilder& cdb, block *b)
+@@ -1645,7 +1645,7 @@ void doswitch(CodeBuilder& cdb, block *b)
              genjmp(cdb,JNE,FLblock,b->nthSucc(0)); // JNE default
          }
          getregs(cdb,mCX|mDI);
@@ -453,7 +430,7 @@ index 0bda39538..646d2d711 100644
          if (config.flags3 & CFG3pic)
          {   // Add in GOT
              getregs(cdb,mDX);
-@@ -1708,7 +1708,7 @@ void doswitch(CodeBuilder& cdb, block *b)
+@@ -1720,7 +1720,7 @@ void doswitch(CodeBuilder& cdb, block *b)
          const int mod = (disp > 127) ? 2 : 1;     // 1 or 2 byte displacement
          if (csseg)
              cdb.gen1(SEGCS);            // table is in code segment
@@ -462,7 +439,7 @@ index 0bda39538..646d2d711 100644
          if (config.flags3 & CFG3pic)
          {                               // ADD EDX,(ncases-1)*2[EDI]
              cdb.genc1(0x03,modregrm(mod,DX,7),FLconst,disp);
-@@ -1778,7 +1778,7 @@ void outjmptab(block *b)
+@@ -1790,7 +1790,7 @@ void outjmptab(block *b)
                          break;
                  }
          }
@@ -471,7 +448,7 @@ index 0bda39538..646d2d711 100644
          if (I64)
          {
              if (config.flags3 & CFG3pic)
-@@ -2331,7 +2331,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
+@@ -2347,7 +2347,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
      cdb.gen1(0x58 + reg);             // L1: POP reg
  
      fixresult(cdb,e,retregs,pretregs);
@@ -480,17 +457,17 @@ index 0bda39538..646d2d711 100644
      regm_t retregs = *pretregs & allregs;
      if  (!retregs)
          retregs = allregs;
-@@ -2366,7 +2366,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
+@@ -2382,7 +2382,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
  
- code *load_localgot()
+ void load_localgot(CodeBuilder& cdb)
  {
 -#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
 +#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic && I32)
      {
          if (localgot && !(localgot->Sflags & SFLdead))
-@@ -2394,7 +2394,7 @@ code *load_localgot()
-     return NULL;
+@@ -2405,7 +2405,7 @@ void load_localgot(CodeBuilder& cdb)
+ #endif
  }
  
 -#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
@@ -498,7 +475,7 @@ index 0bda39538..646d2d711 100644
  /*****************************
   * Returns:
   *      # of bytes stored
-@@ -2998,7 +2998,7 @@ void prolog_frame(CodeBuilder& cdb, unsigned farfunc, unsigned* xlocalsize, bool
+@@ -3011,7 +3011,7 @@ void prolog_frame(CodeBuilder& cdb, unsigned farfunc, unsigned* xlocalsize, bool
      if (config.wflags & WFincbp && farfunc)
          cdb.gen1(0x40 + BP);      // INC  BP
      if (config.target_cpu < TARGET_80286 ||
@@ -507,7 +484,7 @@ index 0bda39538..646d2d711 100644
          !localsize ||
          config.flags & CFGstack ||
          (*xlocalsize >= 0x1000 && config.exe & EX_flat) ||
-@@ -4287,7 +4287,7 @@ void cod3_thunk(Symbol *sthunk,Symbol *sfunc,unsigned p,tym_t thisty,
+@@ -4298,7 +4298,7 @@ void cod3_thunk(Symbol *sthunk,Symbol *sfunc,unsigned p,tym_t thisty,
      sthunk->Soffset = thunkoffset;
      sthunk->Ssize = Offset(seg) - thunkoffset; // size of thunk
      sthunk->Sseg = seg;
@@ -516,7 +493,7 @@ index 0bda39538..646d2d711 100644
      objmod->pubdef(seg,sthunk,sthunk->Soffset);
  #endif
  #if TARGET_WINDOS
-@@ -6528,7 +6528,7 @@ static void do64bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags)
+@@ -6539,7 +6539,7 @@ static void do64bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags)
              // un-named external with is the start of .rodata or .data
          case FLextern:                      /* external data symbol         */
          case FLtlsdata:
@@ -525,7 +502,7 @@ index 0bda39538..646d2d711 100644
          case FLgot:
          case FLgotoff:
  #endif
-@@ -6638,7 +6638,7 @@ static void do32bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags, int
+@@ -6649,7 +6649,7 @@ static void do32bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags, int
          // un-named external with is the start of .rodata or .data
      case FLextern:                      /* external data symbol         */
      case FLtlsdata:
@@ -534,10 +511,10 @@ index 0bda39538..646d2d711 100644
      case FLgot:
      case FLgotoff:
  #endif
-diff --git a/src/ddmd/backend/cod4.c b/src/ddmd/backend/cod4.c
-index 7581e6b37..b11560f19 100644
---- a/src/ddmd/backend/cod4.c
-+++ b/src/ddmd/backend/cod4.c
+diff --git a/src/dmd/backend/cod4.c b/src/dmd/backend/cod4.c
+index db822c92a..2a1bac357 100644
+--- a/src/dmd/backend/cod4.c
++++ b/src/dmd/backend/cod4.c
 @@ -819,7 +819,7 @@ void cdaddass(CodeBuilder& cdb,elem *e,regm_t *pretregs)
  
      if (tyfloating(tyml))
@@ -565,10 +542,10 @@ index 7581e6b37..b11560f19 100644
                  retregs = mST0;
  #else
                  retregs = DOUBLEREGS;
-diff --git a/src/ddmd/backend/code_stub.h b/src/ddmd/backend/code_stub.h
+diff --git a/src/dmd/backend/code_stub.h b/src/dmd/backend/code_stub.h
 index f7f79bbc1..c190f2114 100644
---- a/src/ddmd/backend/code_stub.h
-+++ b/src/ddmd/backend/code_stub.h
+--- a/src/dmd/backend/code_stub.h
++++ b/src/dmd/backend/code_stub.h
 @@ -49,7 +49,7 @@
  #define DOUBLEREGS_16 0
  #define BYTEREGS_INIT 0
@@ -578,10 +555,10 @@ index f7f79bbc1..c190f2114 100644
  extern regm_t ALLREGS;
  extern regm_t BYTEREGS;
  #define ALLREGS_INIT            0
-diff --git a/src/ddmd/backend/code_x86.h b/src/ddmd/backend/code_x86.h
-index 013032e4f..429bd0deb 100644
---- a/src/ddmd/backend/code_x86.h
-+++ b/src/ddmd/backend/code_x86.h
+diff --git a/src/dmd/backend/code_x86.h b/src/dmd/backend/code_x86.h
+index 31de18d76..0bb8fe389 100644
+--- a/src/dmd/backend/code_x86.h
++++ b/src/dmd/backend/code_x86.h
 @@ -124,7 +124,7 @@ enum
  
  extern regm_t ALLREGS;
@@ -591,10 +568,10 @@ index 013032e4f..429bd0deb 100644
      // To support positional independent code,
      // must be able to remove BX from available registers
  #define ALLREGS_INIT            (mAX|mBX|mCX|mDX|mSI|mDI)
-diff --git a/src/ddmd/backend/el.c b/src/ddmd/backend/el.c
-index 34da4cc24..6743b6f82 100644
---- a/src/ddmd/backend/el.c
-+++ b/src/ddmd/backend/el.c
+diff --git a/src/dmd/backend/el.c b/src/dmd/backend/el.c
+index 918e78165..909decc6c 100644
+--- a/src/dmd/backend/el.c
++++ b/src/dmd/backend/el.c
 @@ -1165,7 +1165,7 @@ Lnodep:
  
  symbol *el_alloc_localgot()
@@ -656,10 +633,10 @@ index 34da4cc24..6743b6f82 100644
      if (config.flags3 & CFG3pic &&
          tyfunc(s->ty()))
          e = el_picvar(s);
-diff --git a/src/ddmd/backend/elfobj.c b/src/ddmd/backend/elfobj.c
-index 1666cfd72..44cbd93bf 100644
---- a/src/ddmd/backend/elfobj.c
-+++ b/src/ddmd/backend/elfobj.c
+diff --git a/src/dmd/backend/elfobj.c b/src/dmd/backend/elfobj.c
+index bc877e592..02900e4df 100644
+--- a/src/dmd/backend/elfobj.c
++++ b/src/dmd/backend/elfobj.c
 @@ -54,6 +54,8 @@
  #  define ELFOSABI ELFOSABI_SYSV
  # elif TARGET_OPENBSD
@@ -678,7 +655,7 @@ index 1666cfd72..44cbd93bf 100644
  
  /******
   * FreeBSD uses ELF, but the linker crashes with Elf comdats with the following message:
-@@ -2235,7 +2237,7 @@ char *obj_mangle2(Symbol *s,char *dest, size_t *destlen)
+@@ -2238,7 +2240,7 @@ char *obj_mangle2(Symbol *s,char *dest, size_t *destlen)
              }
              break;
          case mTYman_std:
@@ -687,11 +664,11 @@ index 1666cfd72..44cbd93bf 100644
              if (tyfunc(s->ty()) && !variadic(s->Stype))
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
-diff --git a/src/ddmd/backend/global.h b/src/ddmd/backend/global.h
-index b5a1f6603..185f47ccd 100644
---- a/src/ddmd/backend/global.h
-+++ b/src/ddmd/backend/global.h
-@@ -488,7 +488,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
+diff --git a/src/dmd/backend/global.h b/src/dmd/backend/global.h
+index 27068e956..9c893ab09 100644
+--- a/src/dmd/backend/global.h
++++ b/src/dmd/backend/global.h
+@@ -489,7 +489,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
  void dwarf_CFA_offset(int reg, int offset);
  void dwarf_CFA_args_size(size_t sz);
  
@@ -700,10 +677,10 @@ index b5a1f6603..185f47ccd 100644
  elem *exp_isconst();
  elem *lnx_builtin_next_arg(elem *efunc,list_t arglist);
  char *lnx_redirect_funcname(const char *);
-diff --git a/src/ddmd/backend/machobj.c b/src/ddmd/backend/machobj.c
-index 858f32df0..d34ce02e4 100644
---- a/src/ddmd/backend/machobj.c
-+++ b/src/ddmd/backend/machobj.c
+diff --git a/src/dmd/backend/machobj.c b/src/dmd/backend/machobj.c
+index d8ea573f0..90e0af627 100644
+--- a/src/dmd/backend/machobj.c
++++ b/src/dmd/backend/machobj.c
 @@ -18,11 +18,11 @@
  #include        <fcntl.h>
  #include        <ctype.h>
@@ -718,7 +695,7 @@ index 858f32df0..d34ce02e4 100644
  #include        <signal.h>
  #include        <unistd.h>
  #endif
-@@ -2104,7 +2104,7 @@ char *obj_mangle2(Symbol *s,char *dest)
+@@ -2092,7 +2092,7 @@ char *obj_mangle2(Symbol *s,char *dest)
                  *p = toupper(*p);
              break;
          case mTYman_std:
@@ -727,11 +704,11 @@ index 858f32df0..d34ce02e4 100644
              if (tyfunc(s->ty()) && !variadic(s->Stype))
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
-diff --git a/src/ddmd/backend/obj.h b/src/ddmd/backend/obj.h
-index 15d85c479..cefb46340 100644
---- a/src/ddmd/backend/obj.h
-+++ b/src/ddmd/backend/obj.h
-@@ -96,7 +96,7 @@ class Obj
+diff --git a/src/dmd/backend/obj.h b/src/dmd/backend/obj.h
+index 5820eee6e..d6610d969 100644
+--- a/src/dmd/backend/obj.h
++++ b/src/dmd/backend/obj.h
+@@ -193,7 +193,7 @@ class Obj
  
      static void gotref(symbol *s);
  
@@ -740,10 +717,10 @@ index 15d85c479..cefb46340 100644
      static unsigned addstr(Outbuffer *strtab, const char *);
      static symbol *getGOTsym();
      static void refGOTsym();
-diff --git a/src/ddmd/backend/optabgen.c b/src/ddmd/backend/optabgen.c
-index c20556ac2..0e1c0061b 100644
---- a/src/ddmd/backend/optabgen.c
-+++ b/src/ddmd/backend/optabgen.c
+diff --git a/src/dmd/backend/optabgen.c b/src/dmd/backend/optabgen.c
+index d52920a00..d1a6be11e 100644
+--- a/src/dmd/backend/optabgen.c
++++ b/src/dmd/backend/optabgen.c
 @@ -1035,7 +1035,7 @@ void dotytab()
              case TYcldouble:
  #if TARGET_OSX
@@ -753,10 +730,10 @@ index c20556ac2..0e1c0061b 100644
                  sz = 4;
  #elif TARGET_WINDOS
                  sz = 2;
-diff --git a/src/ddmd/backend/out.c b/src/ddmd/backend/out.c
-index 72ad9b8d8..d691a0bc9 100644
---- a/src/ddmd/backend/out.c
-+++ b/src/ddmd/backend/out.c
+diff --git a/src/dmd/backend/out.c b/src/dmd/backend/out.c
+index 7ac9c8603..4556fcc9b 100644
+--- a/src/dmd/backend/out.c
++++ b/src/dmd/backend/out.c
 @@ -376,7 +376,7 @@ void dt_writeToObj(Obj& objmod, dt_t *dt, int seg, targ_size_t& offset)
                  if (tybasic(dt->Dty) == TYcptr)
                      objmod.reftocodeseg(seg,offset,dt->DTabytes);
@@ -766,10 +743,10 @@ index 72ad9b8d8..d691a0bc9 100644
                      objmod.reftodatseg(seg,offset,dt->DTabytes,dt->DTseg,flags);
  #else
                  /*else*/ if (dt->DTseg == DATA)
-diff --git a/src/ddmd/backend/token.h b/src/ddmd/backend/token.h
-index da86601e3..5c47bfc73 100644
---- a/src/ddmd/backend/token.h
-+++ b/src/ddmd/backend/token.h
+diff --git a/src/dmd/backend/token.h b/src/dmd/backend/token.h
+index 6256500c4..5eff1434e 100644
+--- a/src/dmd/backend/token.h
++++ b/src/dmd/backend/token.h
 @@ -171,7 +171,7 @@ enum TK {
          TK_stdcall,
          TK_syscall,
@@ -788,10 +765,10 @@ index da86601e3..5c47bfc73 100644
          TKdollar,
  #endif
  
-diff --git a/src/ddmd/backend/ty.h b/src/ddmd/backend/ty.h
-index b2fce5a64..f1b52b650 100644
---- a/src/ddmd/backend/ty.h
-+++ b/src/ddmd/backend/ty.h
+diff --git a/src/dmd/backend/ty.h b/src/dmd/backend/ty.h
+index 188ed4818..628ca9733 100644
+--- a/src/dmd/backend/ty.h
++++ b/src/dmd/backend/ty.h
 @@ -180,7 +180,7 @@ enum
      mTYnothrow      = 0x00200000,    // nothrow function
  
@@ -819,10 +796,10 @@ index b2fce5a64..f1b52b650 100644
  #define type_semirelax  (config.flags3 & CFG3semirelax) // !=0 if semi-relaxed type checking
  #else
  #define type_semirelax  type_relax
-diff --git a/src/ddmd/backend/var.c b/src/ddmd/backend/var.c
-index 665ba75ae..4f95852d5 100644
---- a/src/ddmd/backend/var.c
-+++ b/src/ddmd/backend/var.c
+diff --git a/src/dmd/backend/var.c b/src/dmd/backend/var.c
+index 27bbe037a..1cdc78c84 100644
+--- a/src/dmd/backend/var.c
++++ b/src/dmd/backend/var.c
 @@ -57,7 +57,7 @@ int linkage_spec = 0;           /* using the default                    */
  #if MEMMODELS == 1
  tym_t functypetab[LINK_MAXDIM] =
@@ -832,23 +809,23 @@ index 665ba75ae..4f95852d5 100644
      TYnfunc,
      TYnpfunc,
      TYnpfunc,
-diff --git a/src/ddmd/cond.d b/src/ddmd/cond.d
-index 1a034d1ef..9fb443f91 100644
---- a/src/ddmd/cond.d
-+++ b/src/ddmd/cond.d
-@@ -598,6 +598,7 @@ extern (C++) final class VersionCondition : DVCondition
-             "Win32",
-             "Win64",
-             "linux",
-+            "PowerNex",
-             "OSX",
-             "iOS",
-             "TVOS",
-diff --git a/src/ddmd/e2ir.d b/src/ddmd/e2ir.d
-index 31e8f3ee1..cdc620a1a 100644
---- a/src/ddmd/e2ir.d
-+++ b/src/ddmd/e2ir.d
-@@ -290,7 +290,8 @@ private elem *callfunc(Loc loc,
+diff --git a/src/dmd/cond.d b/src/dmd/cond.d
+index 7a8545b96..9e4727de5 100644
+--- a/src/dmd/cond.d
++++ b/src/dmd/cond.d
+@@ -584,6 +584,7 @@ extern (C++) final class VersionCondition : DVCondition
+             case "Win32":
+             case "Win64":
+             case "linux":
++            case "PowerNex":
+             case "OSX":
+             case "iOS":
+             case "TVOS":
+diff --git a/src/dmd/e2ir.d b/src/dmd/e2ir.d
+index 3b2e903ed..170d59c5d 100644
+--- a/src/dmd/e2ir.d
++++ b/src/dmd/e2ir.d
+@@ -291,7 +291,8 @@ private elem *callfunc(Loc loc,
          if ((global.params.isLinux ||
               global.params.isOSX ||
               global.params.isFreeBSD ||
@@ -858,7 +835,7 @@ index 31e8f3ee1..cdc620a1a 100644
          {
                  // ehidden goes last on Linux/OSX C++
          }
-@@ -1986,7 +1987,7 @@ elem *toElem(Expression e, IRState *irs)
+@@ -1988,7 +1989,7 @@ elem *toElem(Expression e, IRState *irs)
                  {
                      ts = symbol_genauto(Type_toCtype(t1));
                      int rtl;
@@ -867,11 +844,11 @@ index 31e8f3ee1..cdc620a1a 100644
                          global.params.is64bit && global.params.isWindows)
                          rtl = RTLSYM__DINVARIANT;
                      else
-diff --git a/src/ddmd/globals.d b/src/ddmd/globals.d
-index 25ae2c4dd..88aafcc8f 100644
---- a/src/ddmd/globals.d
-+++ b/src/ddmd/globals.d
-@@ -28,6 +28,7 @@ enum IN_GCC     = xversion!`IN_GCC`;
+diff --git a/src/dmd/globals.d b/src/dmd/globals.d
+index 4a90a82f0..66ad0f5b0 100644
+--- a/src/dmd/globals.d
++++ b/src/dmd/globals.d
+@@ -31,6 +31,7 @@ enum IN_GCC     = xversion!`IN_GCC`;
  enum TARGET_LINUX   = xversion!`linux`;
  enum TARGET_OSX     = xversion!`OSX`;
  enum TARGET_FREEBSD = xversion!`FreeBSD`;
@@ -879,15 +856,15 @@ index 25ae2c4dd..88aafcc8f 100644
  enum TARGET_OPENBSD = xversion!`OpenBSD`;
  enum TARGET_SOLARIS = xversion!`Solaris`;
  enum TARGET_WINDOS  = xversion!`Windows`;
-@@ -90,6 +91,7 @@ struct Param
-     bool is64bit;           // generate 64 bit code
+@@ -94,6 +95,7 @@ struct Param
+     bool is64bit = (size_t.sizeof == 8);  // generate 64 bit code; true by default for 64 bit dmd
      bool isLP64;            // generate code for LP64
      bool isLinux;           // generate code for linux
 +    bool isPowerNex;        // generate code for PowerNex
      bool isOSX;             // generate code for Mac OSX
      bool isWindows;         // generate code for Windows
      bool isFreeBSD;         // generate code for FreeBSD
-@@ -287,7 +289,7 @@ struct Global
+@@ -307,7 +309,7 @@ struct Global
          {
              obj_ext = "obj";
          }
@@ -896,7 +873,7 @@ index 25ae2c4dd..88aafcc8f 100644
          {
              obj_ext = "o";
          }
-@@ -299,7 +301,7 @@ struct Global
+@@ -319,7 +321,7 @@ struct Global
          {
              lib_ext = "lib";
          }
@@ -905,7 +882,7 @@ index 25ae2c4dd..88aafcc8f 100644
          {
              lib_ext = "a";
          }
-@@ -311,7 +313,7 @@ struct Global
+@@ -331,7 +333,7 @@ struct Global
          {
              dll_ext = "dll";
          }
@@ -914,7 +891,7 @@ index 25ae2c4dd..88aafcc8f 100644
          {
              dll_ext = "so";
          }
-@@ -327,7 +329,7 @@ struct Global
+@@ -347,7 +349,7 @@ struct Global
          {
              run_noext = false;
          }
@@ -923,11 +900,11 @@ index 25ae2c4dd..88aafcc8f 100644
          {
              // Allow 'script' D source files to have no extension.
              run_noext = true;
-diff --git a/src/ddmd/globals.h b/src/ddmd/globals.h
-index 248ba1e81..7e1aa8b62 100644
---- a/src/ddmd/globals.h
-+++ b/src/ddmd/globals.h
-@@ -77,6 +77,7 @@ struct Param
+diff --git a/src/dmd/globals.h b/src/dmd/globals.h
+index 07538b8ff..aa56afaba 100644
+--- a/src/dmd/globals.h
++++ b/src/dmd/globals.h
+@@ -85,6 +85,7 @@ struct Param
      bool is64bit;       // generate 64 bit code
      bool isLP64;        // generate code for LP64
      bool isLinux;       // generate code for linux
@@ -935,18 +912,18 @@ index 248ba1e81..7e1aa8b62 100644
      bool isOSX;         // generate code for Mac OSX
      bool isWindows;     // generate code for Windows
      bool isFreeBSD;     // generate code for FreeBSD
-diff --git a/src/ddmd/lib.d b/src/ddmd/lib.d
-index 16e22ad29..03a0d0fbb 100644
---- a/src/ddmd/lib.d
-+++ b/src/ddmd/lib.d
+diff --git a/src/dmd/lib.d b/src/dmd/lib.d
+index 68e012e40..c48aececa 100644
+--- a/src/dmd/lib.d
++++ b/src/dmd/lib.d
 @@ -28,7 +28,7 @@ static if (TARGET_WINDOS)
-     import ddmd.libomf;
-     import ddmd.libmscoff;
+     import dmd.libomf;
+     import dmd.libmscoff;
  }
 -else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
 +else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
  {
-     import ddmd.libelf;
+     import dmd.libelf;
  }
 @@ -51,7 +51,7 @@ class Library
          {
@@ -957,11 +934,11 @@ index 16e22ad29..03a0d0fbb 100644
          {
              return LibElf_factory();
          }
-diff --git a/src/ddmd/mars.d b/src/ddmd/mars.d
-index 1e42a5e71..ab0158d8d 100644
---- a/src/ddmd/mars.d
-+++ b/src/ddmd/mars.d
-@@ -77,7 +77,7 @@ private void logo()
+diff --git a/src/dmd/mars.d b/src/dmd/mars.d
+index 6344b54cd..a337b15c4 100644
+--- a/src/dmd/mars.d
++++ b/src/dmd/mars.d
+@@ -75,7 +75,7 @@ private void logo()
   */
  private  void usage()
  {
@@ -970,27 +947,18 @@ index 1e42a5e71..ab0158d8d 100644
      {
          const(char)* fpic = "\n  -fPIC            generate position independent code";
      }
-@@ -452,7 +452,7 @@ private int tryMain(size_t argc, const(char)** argv)
-             }
-             else if (strcmp(p + 1, "fPIC") == 0)
-             {
--                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
-                 {
-                     global.params.pic = 1;
-                 }
-@@ -1006,6 +1006,10 @@ Language changes listed by -transition=id:
-                 version (OpenBSD)
-                 {
-                     browse("http://dlang.org/dmd-openbsd.html");
-+                }
-+								version (PowerNex)
-+                {
-+                    browse("http://powernex.net/dmd");
-                 }
-                 exit(EXIT_SUCCESS);
-             }
-@@ -1105,7 +1109,7 @@ Language changes listed by -transition=id:
+@@ -423,6 +423,10 @@ Language changes listed by -transition=id:
+         {
+             browse("http://dlang.org/dmd-openbsd.html");
+         }
++        version (PowerNex)
++        {
++            browse("http://powernex.net/dmd");
++        }
+         return EXIT_SUCCESS;
+     }
+ 
+@@ -464,7 +468,7 @@ Language changes listed by -transition=id:
      {
          global.params.pic = 1;
      }
@@ -999,7 +967,7 @@ index 1e42a5e71..ab0158d8d 100644
      {
          if (global.params.lib && global.params.dll)
              error(Loc(), "cannot mix -lib and -shared");
-@@ -1256,7 +1260,7 @@ Language changes listed by -transition=id:
+@@ -642,7 +646,7 @@ Language changes listed by -transition=id:
                  libmodules.push(files[i]);
                  continue;
              }
@@ -1008,7 +976,7 @@ index 1e42a5e71..ab0158d8d 100644
              {
                  if (FileName.equals(ext, global.dll_ext))
                  {
-@@ -1905,7 +1909,7 @@ private void setDefaultLibrary()
+@@ -1282,7 +1286,7 @@ private void setDefaultLibrary()
              else
                  global.params.defaultlibname = "phobos";
          }
@@ -1017,7 +985,7 @@ index 1e42a5e71..ab0158d8d 100644
          {
              global.params.defaultlibname = "libphobos2.a";
          }
-@@ -1975,6 +1979,13 @@ private void addDefaultVersionIdentifiers()
+@@ -1353,6 +1357,13 @@ private void addDefaultVersionIdentifiers()
          VersionCondition.addPredefinedGlobalIdent("ELFv1");
          global.params.isSolaris = true;
      }
@@ -1031,15 +999,24 @@ index 1e42a5e71..ab0158d8d 100644
      else
      {
          static assert(0, "fix this");
-diff --git a/src/ddmd/mars.h b/src/ddmd/mars.h
-index 9ec4ed62e..01725d97e 100644
---- a/src/ddmd/mars.h
-+++ b/src/ddmd/mars.h
+@@ -1610,7 +1621,7 @@ private bool parseCommandLine(const ref Strings arguments, const size_t argc, re
+             }
+             else if (strcmp(p + 1, "fPIC") == 0)
+             {
+-                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
++                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+                 {
+                     params.pic = 1;
+                 }
+diff --git a/src/dmd/mars.h b/src/dmd/mars.h
+index 709256cb8..fd19a9fba 100644
+--- a/src/dmd/mars.h
++++ b/src/dmd/mars.h
 @@ -41,6 +41,7 @@ Macros defined by the compiler, not the code:
          __FreeBSD__     FreeBSD
          __OpenBSD__     OpenBSD
          __sun           Solaris, OpenSolaris, SunOS, OpenIndiana, etc
-+        __PowerNex__       PowerNex
++        __PowerNex__    PowerNex
  
  For the target systems, there are the target operating system and
  the target object file format:
@@ -1051,11 +1028,11 @@ index 9ec4ed62e..01725d97e 100644
  
      It is expected that the compiler for each platform will be able
      to generate 32 and 64 bit code from the same compiler binary.
-diff --git a/src/ddmd/target.d b/src/ddmd/target.d
-index 0593fb558..04cf6b1b3 100644
---- a/src/ddmd/target.d
-+++ b/src/ddmd/target.d
-@@ -83,7 +83,7 @@ struct Target
+diff --git a/src/dmd/target.d b/src/dmd/target.d
+index 85e62f0a4..f64257026 100644
+--- a/src/dmd/target.d
++++ b/src/dmd/target.d
+@@ -84,7 +84,7 @@ struct Target
              ptrsize = 8;
              classinfosize = 0x98; // 152
          }
@@ -1064,7 +1041,7 @@ index 0593fb558..04cf6b1b3 100644
          {
              realsize = 12;
              realpad = 2;
-@@ -116,7 +116,7 @@ struct Target
+@@ -117,7 +117,7 @@ struct Target
              assert(0);
          if (global.params.is64bit)
          {
@@ -1073,7 +1050,7 @@ index 0593fb558..04cf6b1b3 100644
              {
                  realsize = 16;
                  realpad = 6;
-@@ -132,7 +132,7 @@ struct Target
+@@ -133,7 +133,7 @@ struct Target
          if (global.params.is64bit && global.params.isWindows)
              c_long_doublesize = 8;
  
@@ -1082,7 +1059,7 @@ index 0593fb558..04cf6b1b3 100644
              global.params.isOSX;
      }
  
-@@ -149,7 +149,7 @@ struct Target
+@@ -150,7 +150,7 @@ struct Target
          case Tcomplex80:
              return Target.realalignsize;
          case Tcomplex32:
@@ -1091,7 +1068,7 @@ index 0593fb558..04cf6b1b3 100644
                  return 4;
              break;
          case Tint64:
-@@ -157,7 +157,7 @@ struct Target
+@@ -158,7 +158,7 @@ struct Target
          case Tfloat64:
          case Timaginary64:
          case Tcomplex64:
@@ -1100,19 +1077,19 @@ index 0593fb558..04cf6b1b3 100644
                  return global.params.is64bit ? 8 : 4;
              break;
          default:
-@@ -219,6 +219,11 @@ struct Target
-         {
+@@ -221,6 +221,11 @@ struct Target
              // sizeof(pthread_mutex_t) for Solaris.
              return 24;
-+        }
-+				else if (global.params.isPowerNex)
+         }
++        else if (global.params.isPowerNex)
 +        {
 +            // sizeof(pthread_mutex_t) for PowerNex.
 +            return 64;
-         }
++        }
          assert(0);
      }
-@@ -234,7 +239,7 @@ struct Target
+ 
+@@ -235,7 +240,7 @@ struct Target
          {
              return Type.tchar.pointerTo();
          }
@@ -1121,7 +1098,7 @@ index 0593fb558..04cf6b1b3 100644
          {
              if (global.params.is64bit)
              {
-@@ -436,7 +441,7 @@ struct Target
+@@ -437,7 +442,7 @@ struct Target
  
      extern (C++) static const(char)* toCppMangle(Dsymbol s)
      {
@@ -1130,7 +1107,7 @@ index 0593fb558..04cf6b1b3 100644
              return toCppMangleItanium(s);
          else static if (TARGET_WINDOS)
              return toCppMangleMSVC(s);
-@@ -446,7 +451,7 @@ struct Target
+@@ -447,7 +452,7 @@ struct Target
  
      extern (C++) static const(char)* cppTypeInfoMangle(ClassDeclaration cd)
      {
@@ -1139,11 +1116,11 @@ index 0593fb558..04cf6b1b3 100644
              return cppTypeInfoMangleItanium(cd);
          else static if (TARGET_WINDOS)
              return cppTypeInfoMangleMSVC(cd);
-diff --git a/src/ddmd/toir.d b/src/ddmd/toir.d
-index d5354fd63..8c724aacc 100644
---- a/src/ddmd/toir.d
-+++ b/src/ddmd/toir.d
-@@ -993,7 +993,7 @@ Lagain:
+diff --git a/src/dmd/toir.d b/src/dmd/toir.d
+index 233584e44..d124a7852 100644
+--- a/src/dmd/toir.d
++++ b/src/dmd/toir.d
+@@ -1011,7 +1011,7 @@ Lagain:
          if (tns.ty != Tstruct)
          {
  L2:
@@ -1152,7 +1129,7 @@ index d5354fd63..8c724aacc 100644
              {
                                                  // 32 bit C/C++ structs always on stack
              }
-@@ -1020,7 +1020,7 @@ L2:
+@@ -1038,7 +1038,7 @@ L2:
      if (tns.ty == Tstruct)
      {
          StructDeclaration sd = (cast(TypeStruct)tns).sym;
@@ -1161,7 +1138,7 @@ index d5354fd63..8c724aacc 100644
          {
              if (sd.ident == Id.__c_long || sd.ident == Id.__c_ulong)
                  return RETregs;
-@@ -1069,7 +1069,7 @@ L2:
+@@ -1087,7 +1087,7 @@ L2:
          //printf("  3 RETstack\n");
          return RETstack;
      }
@@ -1171,35 +1148,30 @@ index d5354fd63..8c724aacc 100644
               tns.iscomplex())
      {
 diff --git a/test/fail_compilation/reserved_version.d b/test/fail_compilation/reserved_version.d
-index de23c461e..e571b6ebf 100644
+index 89bde619d..096ac3fae 100644
 --- a/test/fail_compilation/reserved_version.d
 +++ b/test/fail_compilation/reserved_version.d
-@@ -97,11 +97,11 @@ fail_compilation/reserved_version.d(196): Error: version identifier `D_Version2`
- fail_compilation/reserved_version.d(197): Error: version identifier `D_NoBoundsChecks` is reserved and cannot be set
- fail_compilation/reserved_version.d(200): Error: version identifier `all` is reserved and cannot be set
- fail_compilation/reserved_version.d(201): Error: version identifier `none` is reserved and cannot be set
-+fail_compilation/reserved_version.d(202): Error: version identifier `PowerNex` is reserved and cannot be set
+@@ -100,6 +100,7 @@ fail_compilation/reserved_version.d(201): Error: version identifier `none` is re
+ fail_compilation/reserved_version.d(202): Error: version identifier `AsmJS` is reserved and cannot be set
+ fail_compilation/reserved_version.d(203): Error: version identifier `Emscripten` is reserved and cannot be set
+ fail_compilation/reserved_version.d(204): Error: version identifier `WebAssembly` is reserved and cannot be set
++fail_compilation/reserved_version.d(205): Error: version identifier `PowerNex` is reserved and cannot be set
  ---
  */
  
- // Some extra empty lines to help fixup the manual line numbering after adding new version identifiers
--
- version = MSP430;
- version = D_P16;
- version = DigitalMars;
-@@ -199,6 +199,7 @@ version = D_NoBoundsChecks;
- //version = assert;
- version = all;
- version = none;
+@@ -206,6 +207,7 @@ version = none;
+ version = AsmJS;
+ version = Emscripten;
+ version = WebAssembly;
 +version = PowerNex;
  
  // This should work though
  debug = DigitalMars;
-@@ -296,3 +297,4 @@ debug = all;
+@@ -303,3 +305,4 @@ debug = all;
  debug = none;
  debug = D_P16;
  debug = MSP430;
 +debug = PowerNex;
 -- 
-2.14.1
+2.16.1
 

@@ -1,21 +1,21 @@
-From a39ce7a148250b9e7cc004a69319c2b2e1f3d2f7 Mon Sep 17 00:00:00 2001
+From d47f3f51046851ef941a074ae3eb104d9508bc46 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Thu, 28 Sep 2017 23:08:40 +0200
 Subject: [PATCH 4/4] Added PowerNex reminders to the version output
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
- src/ddmd/globals.d | 4 ++--
+ src/dmd/globals.d | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/src/ddmd/globals.d b/src/ddmd/globals.d
-index f05b6df83..9a9a7e893 100644
---- a/src/ddmd/globals.d
-+++ b/src/ddmd/globals.d
-@@ -339,8 +339,8 @@ struct Global
+diff --git a/src/dmd/globals.d b/src/dmd/globals.d
+index 585d25d76..6e16db038 100644
+--- a/src/dmd/globals.d
++++ b/src/dmd/globals.d
+@@ -359,8 +359,8 @@ struct Global
              static assert(0, "fix this");
          }
-         copyright = "Copyright (c) 1999-2017 by Digital Mars";
+         copyright = "Copyright (c) 1999-2017 by The D Language Foundation";
 -        written = "written by Walter Bright";
 -        _version = (import("VERSION") ~ '\0').ptr;
 +        written = "written by Walter Bright.\nPowerNex support by Dan Printzell";
@@ -24,5 +24,5 @@ index f05b6df83..9a9a7e893 100644
          stdmsg = stdout;
          main_d = "__main.d";
 -- 
-2.14.1
+2.16.1
 
