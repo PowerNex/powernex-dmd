@@ -1,7 +1,7 @@
 pipeline {
 	agent { dockerfile true }
 	environment {
-		DMD_VERSION = 'v2.078.1'
+		DMD_VERSION = 'v2.078.2'
 	}
 	stages {
 		stage('fetch') {
