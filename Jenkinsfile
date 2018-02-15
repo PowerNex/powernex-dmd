@@ -62,7 +62,12 @@ pipeline {
 						setGitHubPullRequestStatus state: 'PENDING', context: "${env.JOB_NAME}", message: "Archiving powernex-dmd"
 				}
 				ansiColor('xterm') {
-					archiveArtifacts artifacts: 'powernex-dmd', fingerprint: true
+					sh '''
+					mkdir bin
+					cp powernex-dmd dmd.conf bin
+					tar cvfJ powernex-dmd.tar.xz bin
+					'''
+					archiveArtifacts artifacts: 'powernex-dmd.tar.xz', fingerprint: true
 				}
 			}
 		}
