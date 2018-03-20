@@ -1,52 +1,81 @@
-From 8e24aab36f258a20bb43d97d5baab02bbe5870f7 Mon Sep 17 00:00:00 2001
+From 3ff9795e04fbb89319cbe3b398d9070dad45de5b Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Tue, 30 Jan 2018 22:39:14 +0100
 Subject: [PATCH 1/4] Added PowerNex to the backend
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
+ src/dmd/astbase.d                        |  2 +-
  src/dmd/backend/backconfig.c             | 23 +++++++++++++++++++----
+ src/dmd/backend/cc.d                     |  4 ++--
  src/dmd/backend/cc.h                     |  4 ++--
  src/dmd/backend/cdef.d                   |  4 +++-
  src/dmd/backend/cdef.h                   | 26 ++++++++++++++++++++------
- src/dmd/backend/cgcod.c                  |  2 +-
+ src/dmd/backend/cgcod.c                  |  4 ++--
  src/dmd/backend/cgelem.c                 |  2 +-
- src/dmd/backend/cod1.c                   | 29 +++++++++++++++--------------
+ src/dmd/backend/cod1.c                   | 31 ++++++++++++++++---------------
  src/dmd/backend/cod2.c                   |  6 +++---
  src/dmd/backend/cod3.c                   | 24 ++++++++++++------------
  src/dmd/backend/cod4.c                   |  6 +++---
  src/dmd/backend/code_stub.h              |  2 +-
  src/dmd/backend/code_x86.h               |  2 +-
+ src/dmd/backend/debug.c                  |  2 +-
+ src/dmd/backend/dwarf.c                  |  2 +-
  src/dmd/backend/el.c                     | 14 +++++++-------
  src/dmd/backend/elfobj.c                 |  6 ++++--
+ src/dmd/backend/global.d                 |  2 +-
  src/dmd/backend/global.h                 |  2 +-
  src/dmd/backend/machobj.c                |  6 +++---
- src/dmd/backend/obj.h                    |  2 +-
+ src/dmd/backend/nteh.c                   |  2 +-
+ src/dmd/backend/obj.h                    |  6 +++---
  src/dmd/backend/optabgen.c               |  2 +-
+ src/dmd/backend/os.c                     | 20 ++++++++++++++++----
  src/dmd/backend/out.c                    |  2 +-
+ src/dmd/backend/strtold.c                |  4 ++--
  src/dmd/backend/token.h                  |  4 ++--
+ src/dmd/backend/ty.d                     |  4 ++--
  src/dmd/backend/ty.h                     |  6 +++---
+ src/dmd/backend/util2.c                  |  2 +-
  src/dmd/backend/var.c                    |  2 +-
+ src/dmd/cli.d                            |  7 ++++++-
  src/dmd/cond.d                           |  1 +
- src/dmd/e2ir.d                           |  5 +++--
+ src/dmd/dmsc.d                           |  3 ++-
+ src/dmd/e2ir.d                           |  3 ++-
  src/dmd/globals.d                        | 10 ++++++----
  src/dmd/globals.h                        |  1 +
+ src/dmd/glue.d                           |  8 ++++----
  src/dmd/lib.d                            |  4 ++--
- src/dmd/mars.d                           | 21 ++++++++++++++++-----
+ src/dmd/mars.d                           | 19 +++++++++++++++----
  src/dmd/mars.h                           |  2 ++
+ src/dmd/root/object.h                    |  2 +-
  src/dmd/target.d                         | 21 +++++++++++++--------
+ src/dmd/tk/filespec.c                    | 14 +++++++-------
+ src/dmd/tk/mem.c                         |  4 ++--
  src/dmd/toir.d                           |  6 +++---
  test/fail_compilation/reserved_version.d |  3 +++
- 32 files changed, 155 insertions(+), 95 deletions(-)
+ 48 files changed, 207 insertions(+), 129 deletions(-)
 
+diff --git a/src/dmd/astbase.d b/src/dmd/astbase.d
+index 8647cded5..0ca8ba0b0 100644
+--- a/src/dmd/astbase.d
++++ b/src/dmd/astbase.d
+@@ -6307,7 +6307,7 @@ struct ASTBase
+                 return Type.tchar.pointerTo();
+             }
+             else if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD  || global.params.isDragonFlyBSD ||
+-                global.params.isSolaris || global.params.isOSX)
++                global.params.isSolaris || global.params.isPowerNex || global.params.isOSX)
+             {
+                 if (global.params.is64bit)
+                 {
 diff --git a/src/dmd/backend/backconfig.c b/src/dmd/backend/backconfig.c
-index 14fe073f7..e56a21b16 100644
+index 29068cec8..184bed1ca 100644
 --- a/src/dmd/backend/backconfig.c
 +++ b/src/dmd/backend/backconfig.c
-@@ -196,6 +196,21 @@ void out_config_init(
+@@ -217,6 +217,21 @@ void out_config_init(
          config.flags3 |= CFG3pic;
      config.objfmt = OBJ_ELF;
-     config.ehmethod = betterC ? EH_NONE : EH_DM;
+     config.ehmethod = useExceptions ? EH_DM : EH_NONE;
 +#endif
 +#if TARGET_POWERNEX
 +		// Based on TARGET_LINUX
@@ -65,52 +94,74 @@ index 14fe073f7..e56a21b16 100644
  #endif
      config.flags2 |= CFG2nodeflib;      // no default library
      config.flags3 |= CFG3eseqds;
-@@ -336,7 +351,7 @@ void util_set32()
+@@ -359,7 +374,7 @@ void util_set32()
      _tysize[TYnullptr] = LONGSIZE;
      _tysize[TYnptr] = LONGSIZE;
      _tysize[TYnref] = LONGSIZE;
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      _tysize[TYldouble] = 12;
      _tysize[TYildouble] = 12;
      _tysize[TYcldouble] = 24;
-@@ -363,7 +378,7 @@ void util_set32()
+@@ -386,7 +401,7 @@ void util_set32()
      _tyalignsize[TYnullptr] = LONGSIZE;
      _tyalignsize[TYnref] = LONGSIZE;
      _tyalignsize[TYnptr] = LONGSIZE;
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      _tyalignsize[TYldouble] = 4;
      _tyalignsize[TYildouble] = 4;
      _tyalignsize[TYcldouble] = 4;
-@@ -401,7 +416,7 @@ void util_set64()
+@@ -424,7 +439,7 @@ void util_set64()
      _tysize[TYnullptr] = 8;
      _tysize[TYnptr] = 8;
      _tysize[TYnref] = 8;
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_OSX
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_OSX || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_OSX
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_OSX || TARGET_POWERNEX
      _tysize[TYldouble] = 16;
      _tysize[TYildouble] = 16;
      _tysize[TYcldouble] = 32;
-@@ -424,7 +439,7 @@ void util_set64()
+@@ -447,7 +462,7 @@ void util_set64()
      _tyalignsize[TYnullptr] = 8;
      _tyalignsize[TYnptr] = 8;
      _tyalignsize[TYnref] = 8;
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      _tyalignsize[TYldouble] = 16;
      _tyalignsize[TYildouble] = 16;
      _tyalignsize[TYcldouble] = 16;
+diff --git a/src/dmd/backend/cc.d b/src/dmd/backend/cc.d
+index dca1768d4..2ac15de6c 100644
+--- a/src/dmd/backend/cc.d
++++ b/src/dmd/backend/cc.d
+@@ -58,7 +58,7 @@ enum WM
+     WM_ccast        = 25,
+     WM_obsolete     = 26,
+ 
+-    // if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++    // if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+     WM_skip_attribute   = 27, // skip GNUC attribute specification
+     WM_warning_message  = 28, // preprocessor warning message
+     WM_bad_vastart      = 29, // args for builtin va_start bad
+@@ -92,7 +92,7 @@ enum LANG
+ //#include        "msgs2.h"
+ //#endif
+ //#include        "ty.h"
+-//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+ //#include        "../tk/mem.h"
+ //#else
+ //#include        "mem.h"
 diff --git a/src/dmd/backend/cc.h b/src/dmd/backend/cc.h
-index 10ed38b33..f0f8fcc47 100644
+index 90cfd91e6..5e9a2ced1 100644
 --- a/src/dmd/backend/cc.h
 +++ b/src/dmd/backend/cc.h
 @@ -77,7 +77,7 @@ enum WM
          WM_badnumber    = 24,
          WM_ccast        = 25,
          WM_obsolete     = 26,
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          WM_skip_attribute   = 27, // skip GNUC attribute specification
          WM_warning_message  = 28, // preprocessor warning message
          WM_bad_vastart      = 29, // args for builtin va_start bad
@@ -118,27 +169,27 @@ index 10ed38b33..f0f8fcc47 100644
  #include        "msgs2.h"
  #endif
  #include        "ty.h"
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  #include        "../tk/mem.h"
  #else
  #include        "mem.h"
 diff --git a/src/dmd/backend/cdef.d b/src/dmd/backend/cdef.d
-index 1721d29af..ed2b0f40b 100644
+index 9bca51714..ff8ee4196 100644
 --- a/src/dmd/backend/cdef.d
 +++ b/src/dmd/backend/cdef.d
-@@ -500,6 +500,7 @@ enum
-     EX_SOLARIS64    = 0x200000,
+@@ -501,6 +501,7 @@ enum
      EX_OPENBSD      = 0x400000,
      EX_OPENBSD64    = 0x800000,
-+    EX_POWERNEX64   = 0x1000000,
+     EX_DRAGONFLYBSD64 = 0x1000000,
++    EX_POWERNEX64   = 0x2000000,
  }
  
  
-@@ -507,7 +508,8 @@ enum
- enum exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
+@@ -509,7 +510,8 @@ enum exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
                           EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 |
                           EX_OPENBSD | EX_OPENBSD64 |
+                          EX_DRAGONFLYBSD64 |
 -                         EX_SOLARIS | EX_SOLARIS64;
 +                         EX_SOLARIS | EX_SOLARIS64 |
 +                         EX_POWERNEX64;
@@ -146,18 +197,18 @@ index 1721d29af..ed2b0f40b 100644
  // All DOS executable types
  enum exefmt_t EX_dos =  EX_DOSX | EX_ZPM | EX_RATIONAL | EX_PHARLAP |
 diff --git a/src/dmd/backend/cdef.h b/src/dmd/backend/cdef.h
-index 5f81c2210..d9b3c34f7 100644
+index 4bc997b68..b3c5482af 100644
 --- a/src/dmd/backend/cdef.h
 +++ b/src/dmd/backend/cdef.h
-@@ -27,6 +27,7 @@
-         __FreeBSD__     FreeBSD
+@@ -28,6 +28,7 @@
          __OpenBSD__     OpenBSD
+         __DragonFly__   DragonFlyBSD
          __sun           Solaris, OpenSolaris, SunOS, OpenIndiana, etc
 +        __PowerNex__    PowerNex
          __OS2__         IBM OS/2
          DOS386          32 bit DOS extended executable
          DOS16RM         Rational Systems 286 DOS extender
-@@ -141,6 +142,12 @@ One and only one of these macros must be set by the makefile:
+@@ -159,6 +160,12 @@ One and only one of these macros must be set by the makefile:
   * with these goals, and should be fixed.
   */
  
@@ -170,7 +221,7 @@ index 5f81c2210..d9b3c34f7 100644
  #ifndef CDEF_H
  #define CDEF_H  1
  
-@@ -191,9 +198,14 @@ One and only one of these macros must be set by the makefile:
+@@ -214,9 +221,14 @@ One and only one of these macros must be set by the makefile:
  #define TARGET_SOLARIS  0               // target is a Solaris executable
  #endif
  
@@ -181,58 +232,58 @@ index 5f81c2210..d9b3c34f7 100644
 +
  // This is the default
  #ifndef TARGET_WINDOS
--#define TARGET_WINDOS   (!(TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS))
-+#define TARGET_WINDOS   (!(TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX))
+-#define TARGET_WINDOS   (!(TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS))
++#define TARGET_WINDOS   (!(TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX))
  #endif
  
  #if __GNUC__
-@@ -296,7 +308,7 @@ typedef long double longdouble;
+@@ -319,7 +331,7 @@ typedef long double longdouble;
  
  // Precompiled header variations
  #define MEMORYHX        (_WINDLL && _WIN32)     // HX and SYM files are cached in memory
--#define MMFIO           (_WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __sun)  // if memory mapped files
-+#define MMFIO           (_WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __sun || __PowerNex__)  // if memory mapped files
+-#define MMFIO           (_WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun)  // if memory mapped files
++#define MMFIO           (_WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__)  // if memory mapped files
  #define LINEARALLOC     _WIN32  // if we can reserve address ranges
  
  // H_STYLE takes on one of these precompiled header methods
-@@ -519,7 +531,7 @@ enum
+@@ -542,7 +554,7 @@ enum
  #define REGMASK         0xFFFF
  
  // targ_llong is also used to store host pointers, so it should have at least their size
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_OSX || MARS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX || TARGET_OSX || MARS
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_OSX || MARS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX || TARGET_OSX || MARS
  typedef targ_llong      targ_ptrdiff_t; /* ptrdiff_t for target machine  */
  typedef targ_ullong     targ_size_t;    /* size_t for the target machine */
  #else
-@@ -542,14 +554,14 @@ typedef targ_uns        targ_size_t;    /* size_t for the target machine */
+@@ -565,14 +577,14 @@ typedef targ_uns        targ_size_t;    /* size_t for the target machine */
  #define OMFOBJ          TARGET_WINDOS
  #endif
  #ifndef ELFOBJ
--#define ELFOBJ          (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+#define ELFOBJ          (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-#define ELFOBJ          (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS)
++#define ELFOBJ          (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX)
  #endif
  #ifndef MACHOBJ
  #define MACHOBJ         TARGET_OSX
  #endif
  
  #define SYMDEB_CODEVIEW TARGET_WINDOS
--#define SYMDEB_DWARF    (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_OSX)
-+#define SYMDEB_DWARF    (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX || TARGET_OSX)
+-#define SYMDEB_DWARF    (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_OSX)
++#define SYMDEB_DWARF    (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX || TARGET_OSX)
  
  #define TOOLKIT_H
  
-@@ -737,6 +749,7 @@ enum
-     EX_SOLARIS64    = 0x200000,
+@@ -761,6 +773,7 @@ enum
      EX_OPENBSD      = 0x400000,
      EX_OPENBSD64    = 0x800000,
-+    EX_POWERNEX64   = 0x1000000,
+     EX_DRAGONFLYBSD64 = 0x1000000,
++    EX_POWERNEX64   = 0x2000000,
  };
  
  
-@@ -744,7 +757,8 @@ enum
- const exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
+@@ -769,7 +782,8 @@ const exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
                           EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 |
                           EX_OPENBSD | EX_OPENBSD64 |
+                          EX_DRAGONFLYBSD64 |
 -                         EX_SOLARIS | EX_SOLARIS64;
 +                         EX_SOLARIS | EX_SOLARIS64 |
 +                         EX_POWERNEX64;
@@ -240,41 +291,50 @@ index 5f81c2210..d9b3c34f7 100644
  // All DOS executable types
  const exefmt_t EX_dos =  EX_DOSX | EX_ZPM | EX_RATIONAL | EX_PHARLAP |
 diff --git a/src/dmd/backend/cgcod.c b/src/dmd/backend/cgcod.c
-index 8682df3c5..77c621636 100644
+index 41bb1f0b7..5608601e0 100644
 --- a/src/dmd/backend/cgcod.c
 +++ b/src/dmd/backend/cgcod.c
-@@ -2543,7 +2543,7 @@ reload:                                 /* reload result from memory    */
+@@ -706,7 +706,7 @@ Lagain:
+     spoff = 0;
+     char guessneedframe = needframe;
+     int cfa_offset = 0;
+-//    if (needframe && config.exe & (EX_LINUX | EX_FREEBSD | EX_SOLARIS) && !(usednteh & (NTEH_try | NTEH_except | NTEHcpp | EHcleanup | EHtry | NTEHpassthru)))
++//    if (needframe && config.exe & (EX_LINUX | EX_FREEBSD | EX_SOLARIS || EX_POWERNEX64) && !(usednteh & (NTEH_try | NTEH_except | NTEHcpp | EHcleanup | EHtry | NTEHpassthru)))
+ //      usednteh |= NTEHpassthru;
+ 
+     /* Compute BP offsets for variables on stack.
+@@ -2544,7 +2544,7 @@ reload:                                 /* reload result from memory    */
          case OPrelconst:
              cdrelconst(cdb,e,pretregs);
              break;
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          case OPgot:
              cdgot(cdb,e,pretregs);
              break;
 diff --git a/src/dmd/backend/cgelem.c b/src/dmd/backend/cgelem.c
-index f2712a016..7d3e51bc0 100644
+index d94613ada..85ee112aa 100644
 --- a/src/dmd/backend/cgelem.c
 +++ b/src/dmd/backend/cgelem.c
-@@ -5040,7 +5040,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
+@@ -4968,7 +4968,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
  
  #endif
  
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  
      assert(I64); // va_start is not an intrinsic on 32-bit
      // (OPva_start &va)
 diff --git a/src/dmd/backend/cod1.c b/src/dmd/backend/cod1.c
-index 6f2394d4c..105ae7542 100644
+index a7b28a266..30c9563ea 100644
 --- a/src/dmd/backend/cod1.c
 +++ b/src/dmd/backend/cod1.c
 @@ -1285,7 +1285,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
      case FLextern:
          if (s->Sident[0] == '_' && memcmp(s->Sident + 1,"tls_array",10) == 0)
          {
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
              // Rewrite as GS:[0000], or FS:[0000] for 64 bit
              if (I64)
              {
@@ -282,12 +342,12 @@ index 6f2394d4c..105ae7542 100644
      case FLcsdata:
      case FLgot:
      case FLgotoff:
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      case FLtlsdata:
  #endif
      L3:
-@@ -1889,11 +1889,12 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1889,12 +1889,13 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
          clib_inited = true;
      }
  
@@ -295,17 +355,18 @@ index 6f2394d4c..105ae7542 100644
 -                              EX_OSX     | EX_OSX64     |
 -                              EX_FREEBSD | EX_FREEBSD64 |
 -                              EX_OPENBSD | EX_OPENBSD64 |
--                              EX_SOLARIS | EX_SOLARIS64);
 +    const unsigned ex_unix = (EX_LINUX     | EX_LINUX64   |
 +                              EX_OSX       | EX_OSX64     |
 +                              EX_FREEBSD   | EX_FREEBSD64 |
 +                              EX_OPENBSD   | EX_OPENBSD64 |
+                               EX_DRAGONFLYBSD64 |
+-                              EX_SOLARIS | EX_SOLARIS64);
 +                              EX_SOLARIS   | EX_SOLARIS64 |
 +                              EX_POWERNEX64);
  
      ClibInfo *cinfo = &clibinfo[clib];
      symbol *s = clibsyms[clib];
-@@ -1918,7 +1919,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1919,7 +1920,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBldiv:
                  cinfo->retregs16 = mDX|mAX;
@@ -314,7 +375,7 @@ index 6f2394d4c..105ae7542 100644
                  {
                      s = symboly("__divdi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1945,7 +1946,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1946,7 +1947,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBlmod:
                  cinfo->retregs16 = mCX|mBX;
@@ -323,7 +384,7 @@ index 6f2394d4c..105ae7542 100644
                  {
                      s = symboly("__moddi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1972,7 +1973,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -1973,7 +1974,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBuldiv:
                  cinfo->retregs16 = mDX|mAX;
@@ -332,7 +393,7 @@ index 6f2394d4c..105ae7542 100644
                  {
                      s = symboly("__udivdi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -1999,7 +2000,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
+@@ -2000,7 +2001,7 @@ void getClibInfo(unsigned clib, symbol **ps, ClibInfo **pinfo)
                  break;
              case CLIBulmod:
                  cinfo->retregs16 = mCX|mBX;
@@ -341,43 +402,52 @@ index 6f2394d4c..105ae7542 100644
                  {
                      s = symboly("__umoddi3", mAX|mBX|mCX|mDX);
                      cinfo->flags = INFpushebx;
-@@ -2572,7 +2573,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
+@@ -2573,7 +2574,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
          }
          if (pushebx)
          {
--            if (config.exe & (EX_LINUX | EX_LINUX64 | EX_FREEBSD | EX_FREEBSD64))
-+            if (config.exe & (EX_LINUX | EX_LINUX64 | EX_FREEBSD | EX_FREEBSD64 | EX_POWERNEX64))
+-            if (config.exe & (EX_LINUX | EX_LINUX64 | EX_FREEBSD | EX_FREEBSD64 | EX_DRAGONFLYBSD64))
++            if (config.exe & (EX_LINUX | EX_LINUX64 | EX_FREEBSD | EX_FREEBSD64 | EX_DRAGONFLYBSD64 | EX_POWERNEX64))
              {
                  cdb.gen1(0x50 + CX);                             // PUSH ECX
                  cdb.gen1(0x50 + BX);                             // PUSH EBX
-@@ -3409,7 +3410,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -2594,7 +2595,7 @@ void callclib(CodeBuilder& cdb,elem *e,unsigned clib,regm_t *pretregs,regm_t kee
+             cdb.gen1(0x50 + DX);                                 // PUSH EDX
+             cdb.gen1(0x50 + AX);                                 // PUSH EAX
+         }
+-        if (config.exe & (EX_LINUX | EX_FREEBSD | EX_OPENBSD | EX_SOLARIS))
++        if (config.exe & (EX_LINUX | EX_FREEBSD | EX_OPENBSD | EX_SOLARIS | EX_POWERNEX64))
+         {
+             // Note: not for OSX
+             /* Pass EBX on the stack instead, this is because EBX is used
+@@ -3410,7 +3411,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
                  fl = el_fl(e1);
              if (tym1 == TYifunc)
                  cdbe.gen1(0x9C);                             // PUSHF
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
              assert(!farfunc);
              if (s != tls_get_addr_sym)
              {
-@@ -3448,7 +3449,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -3449,7 +3450,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
          tym_t e11ty = tybasic(e11->Ety);
          assert(!I16 || (e11ty == (farfunc ? TYfptr : TYnptr)));
          load_localgot(cdb);
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (config.flags3 & CFG3pic && I32)
              keepmsk |= mBX;
  #endif
 diff --git a/src/dmd/backend/cod2.c b/src/dmd/backend/cod2.c
-index eecbba919..89424cd5b 100755
+index f544510bd..0d3290015 100644
 --- a/src/dmd/backend/cod2.c
 +++ b/src/dmd/backend/cod2.c
 @@ -909,7 +909,7 @@ void cdmul(CodeBuilder& cdb,elem *e,regm_t *pretregs)
              orthxmm(cdb,e,pretregs);
              return;
          }
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          orth87(cdb,e,pretregs);
  #else
          opdouble(cdb,e,pretregs,(oper == OPmul) ? CLIBdmul : CLIBddiv);
@@ -385,8 +455,8 @@ index eecbba919..89424cd5b 100755
          goto L4;
  
      case FLtlsdata:
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      {
        L5:
          if (config.flags3 & CFG3pic)
@@ -394,21 +464,21 @@ index eecbba919..89424cd5b 100755
          goto L4;
  
      case FLextern:
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (e->EV.sp.Vsym->ty() & mTYthread)
              goto L5;
  #endif
 diff --git a/src/dmd/backend/cod3.c b/src/dmd/backend/cod3.c
-index 9c1631a4a..6e0293836 100644
+index 0e3dba4e8..b0e9411c8 100644
 --- a/src/dmd/backend/cod3.c
 +++ b/src/dmd/backend/cod3.c
 @@ -631,7 +631,7 @@ regm_t regmask(tym_t tym, tym_t tyf)
              return mST0;
  
          case TYcfloat:
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
              if (I32 && tybasic(tyf) == TYnfunc)
                  return mDX | mAX;
  #endif
@@ -416,8 +486,8 @@ index 9c1631a4a..6e0293836 100644
          regm_t retregs = IDXREGS;
          if (dword)
              retregs |= mMSW;
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (I32 && config.flags3 & CFG3pic)
              retregs &= ~mBX;                            // need EBX for GOT
  #endif
@@ -425,8 +495,8 @@ index 9c1631a4a..6e0293836 100644
              genjmp(cdb,JNE,FLblock,b->nthSucc(0)); // JNE default
          }
          getregs(cdb,mCX|mDI);
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (config.flags3 & CFG3pic)
          {   // Add in GOT
              getregs(cdb,mDX);
@@ -434,8 +504,8 @@ index 9c1631a4a..6e0293836 100644
          const int mod = (disp > 127) ? 2 : 1;     // 1 or 2 byte displacement
          if (csseg)
              cdb.gen1(SEGCS);            // table is in code segment
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (config.flags3 & CFG3pic)
          {                               // ADD EDX,(ncases-1)*2[EDI]
              cdb.genc1(0x03,modregrm(mod,DX,7),FLconst,disp);
@@ -443,84 +513,84 @@ index 9c1631a4a..6e0293836 100644
                          break;
                  }
          }
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (I64)
          {
              if (config.flags3 & CFG3pic)
-@@ -2347,7 +2347,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
+@@ -2346,7 +2346,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
      cdb.gen1(0x58 + reg);             // L1: POP reg
  
      fixresult(cdb,e,retregs,pretregs);
--#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      regm_t retregs = *pretregs & allregs;
      if  (!retregs)
          retregs = allregs;
-@@ -2382,7 +2382,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
+@@ -2381,7 +2381,7 @@ void cdgot(CodeBuilder& cdb, elem *e, regm_t *pretregs)
  
  void load_localgot(CodeBuilder& cdb)
  {
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic && I32)
      {
          if (localgot && !(localgot->Sflags & SFLdead))
-@@ -2405,7 +2405,7 @@ void load_localgot(CodeBuilder& cdb)
+@@ -2404,7 +2404,7 @@ void load_localgot(CodeBuilder& cdb)
  #endif
  }
  
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  /*****************************
   * Returns:
   *      # of bytes stored
-@@ -3011,7 +3011,7 @@ void prolog_frame(CodeBuilder& cdb, unsigned farfunc, unsigned* xlocalsize, bool
+@@ -3010,7 +3010,7 @@ void prolog_frame(CodeBuilder& cdb, unsigned farfunc, unsigned* xlocalsize, bool
      if (config.wflags & WFincbp && farfunc)
          cdb.gen1(0x40 + BP);      // INC  BP
      if (config.target_cpu < TARGET_80286 ||
--        config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_WIN64) ||
-+        config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_POWERNEX64 | EX_WIN64) ||
+-        config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_DRAGONFLYBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_WIN64) ||
++        config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_DRAGONFLYBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_POWERNEX64 | EX_WIN64) ||
          !localsize ||
          config.flags & CFGstack ||
          (*xlocalsize >= 0x1000 && config.exe & EX_flat) ||
-@@ -4298,7 +4298,7 @@ void cod3_thunk(Symbol *sthunk,Symbol *sfunc,unsigned p,tym_t thisty,
+@@ -4297,7 +4297,7 @@ void cod3_thunk(Symbol *sthunk,Symbol *sfunc,unsigned p,tym_t thisty,
      sthunk->Soffset = thunkoffset;
      sthunk->Ssize = Offset(seg) - thunkoffset; // size of thunk
      sthunk->Sseg = seg;
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      objmod->pubdef(seg,sthunk,sthunk->Soffset);
  #endif
  #if TARGET_WINDOS
-@@ -6539,7 +6539,7 @@ static void do64bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags)
+@@ -6538,7 +6538,7 @@ static void do64bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags)
              // un-named external with is the start of .rodata or .data
          case FLextern:                      /* external data symbol         */
          case FLtlsdata:
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          case FLgot:
          case FLgotoff:
  #endif
-@@ -6649,7 +6649,7 @@ static void do32bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags, int
+@@ -6648,7 +6648,7 @@ static void do32bit(MiniCodeBuf *pbuf, enum FL fl,union evc *uev,int flags, int
          // un-named external with is the start of .rodata or .data
      case FLextern:                      /* external data symbol         */
      case FLtlsdata:
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      case FLgot:
      case FLgotoff:
  #endif
 diff --git a/src/dmd/backend/cod4.c b/src/dmd/backend/cod4.c
-index db822c92a..2a1bac357 100644
+index e095377b0..9d0490e3a 100644
 --- a/src/dmd/backend/cod4.c
 +++ b/src/dmd/backend/cod4.c
 @@ -819,7 +819,7 @@ void cdaddass(CodeBuilder& cdb,elem *e,regm_t *pretregs)
  
      if (tyfloating(tyml))
      {
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          if (op == OPnegass)
              cdnegass87(cdb,e,pretregs);
          else
@@ -528,56 +598,82 @@ index db822c92a..2a1bac357 100644
  
      if (tyfloating(tyml))
      {
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          opass87(cdb,e,pretregs);
  #else
          opassdbl(cdb,e,pretregs,op);
-@@ -2747,7 +2747,7 @@ void cdcnvt(CodeBuilder& cdb,elem *e, regm_t *pretregs)
+@@ -2751,7 +2751,7 @@ void cdcnvt(CodeBuilder& cdb,elem *e, regm_t *pretregs)
                      cdd_u32(cdb,e,pretregs);
                      return;
                  }
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
                  retregs = mST0;
  #else
                  retregs = DOUBLEREGS;
 diff --git a/src/dmd/backend/code_stub.h b/src/dmd/backend/code_stub.h
-index f7f79bbc1..c190f2114 100644
+index 9738f0365..580c0ff12 100644
 --- a/src/dmd/backend/code_stub.h
 +++ b/src/dmd/backend/code_stub.h
 @@ -49,7 +49,7 @@
  #define DOUBLEREGS_16 0
  #define BYTEREGS_INIT 0
  
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  extern regm_t ALLREGS;
  extern regm_t BYTEREGS;
  #define ALLREGS_INIT            0
 diff --git a/src/dmd/backend/code_x86.h b/src/dmd/backend/code_x86.h
-index 31de18d76..0bb8fe389 100644
+index 8731834e8..5dafc9f9b 100644
 --- a/src/dmd/backend/code_x86.h
 +++ b/src/dmd/backend/code_x86.h
 @@ -124,7 +124,7 @@ enum
  
  extern regm_t ALLREGS;
  extern regm_t BYTEREGS;
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      // To support positional independent code,
      // must be able to remove BX from available registers
  #define ALLREGS_INIT            (mAX|mBX|mCX|mDX|mSI|mDI)
+diff --git a/src/dmd/backend/debug.c b/src/dmd/backend/debug.c
+index e23048233..22d76e8c1 100644
+--- a/src/dmd/backend/debug.c
++++ b/src/dmd/backend/debug.c
+@@ -87,7 +87,7 @@ void WRTYxx(tym_t t)
+         printf("mTYconst|");
+     if (t & mTYvolatile)
+         printf("mTYvolatile|");
+-#if !MARS && (__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun)
++#if !MARS && (__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__)
+     if (t & mTYtransu)
+         printf("mTYtransu|");
+ #endif
+diff --git a/src/dmd/backend/dwarf.c b/src/dmd/backend/dwarf.c
+index 09e67c4fd..ee73051d8 100644
+--- a/src/dmd/backend/dwarf.c
++++ b/src/dmd/backend/dwarf.c
+@@ -24,7 +24,7 @@
+ #include        <malloc.h>
+ #endif
+ 
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ #include        <signal.h>
+ #include        <unistd.h>
+ #include        <errno.h>
 diff --git a/src/dmd/backend/el.c b/src/dmd/backend/el.c
-index 918e78165..909decc6c 100644
+index 6d5ea0b7d..ab1076860 100644
 --- a/src/dmd/backend/el.c
 +++ b/src/dmd/backend/el.c
 @@ -1165,7 +1165,7 @@ Lnodep:
  
  symbol *el_alloc_localgot()
  {
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      /* Since localgot is a local variable to each function,
       * localgot must be set back to NULL
       * at the start of code gen for each function.
@@ -585,8 +681,8 @@ index 918e78165..909decc6c 100644
      return e;
  }
  #endif
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  
  elem *el_picvar(symbol *s)
  {   elem *e;
@@ -594,15 +690,15 @@ index 918e78165..909decc6c 100644
  
      //printf("el_var(s = '%s')\n", s->Sident);
      //printf("%x\n", s->Stype->Tty);
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic &&
          !tyfunc(s->ty()))
          // Position Independent Code
          return el_picvar(s);
  #endif
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic && tyfunc(s->ty()))
      {
          switch (s->Sclass)
@@ -610,8 +706,8 @@ index 918e78165..909decc6c 100644
          //printf("thread local %s\n", s->Sident);
  #if TARGET_OSX
          ;
--#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          /* For 32 bit:
           * Generate for var locals:
           *      MOV reg,GS:[00000000]   // add GS: override in back end
@@ -619,8 +715,8 @@ index 918e78165..909decc6c 100644
  {   elem *e;
  
      //printf("el_var(s = '%s')\n", s->Sident);
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic && !tyfunc(s->ty()))
          return el_picvar(s);
  #endif
@@ -628,57 +724,70 @@ index 918e78165..909decc6c 100644
          return e;
      }
  #endif
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      if (config.flags3 & CFG3pic &&
          tyfunc(s->ty()))
          e = el_picvar(s);
 diff --git a/src/dmd/backend/elfobj.c b/src/dmd/backend/elfobj.c
-index bc877e592..02900e4df 100644
+index 77c76050b..e52e191c1 100644
 --- a/src/dmd/backend/elfobj.c
 +++ b/src/dmd/backend/elfobj.c
-@@ -54,6 +54,8 @@
- #  define ELFOSABI ELFOSABI_SYSV
- # elif TARGET_OPENBSD
+@@ -56,6 +56,8 @@
  #  define ELFOSABI ELFOSABI_OPENBSD
+ # elif TARGET_DRAGONFLYBSD
+ #  define ELFOSABI ELFOSABI_SYSV
 +# elif TARGET_POWERNEX
 +#  define ELFOSABI ELFOSABI_SYSV
  # else
  #  error "No ELF OS ABI defined.  Please fix"
  # endif
-@@ -82,7 +84,7 @@ void addSegmentToComdat(segidx_t seg, segidx_t comdatseg);
+@@ -84,7 +86,7 @@ void addSegmentToComdat(segidx_t seg, segidx_t comdatseg);
   * If set the compiler requires full druntime support of the new
   * section registration.
   */
--#define REQUIRE_DSO_REGISTRY (DMDV2 && (TARGET_LINUX || TARGET_FREEBSD))
-+#define REQUIRE_DSO_REGISTRY (DMDV2 && (TARGET_LINUX || TARGET_FREEBSD || TARGET_POWERNEX))
+-#define REQUIRE_DSO_REGISTRY (DMDV2 && (TARGET_LINUX || TARGET_FREEBSD || TARGET_DRAGONFLYBSD))
++#define REQUIRE_DSO_REGISTRY (DMDV2 && (TARGET_LINUX || TARGET_FREEBSD || TARGET_DRAGONFLYBSD || TARGET_POWERNEX))
  
  /******
   * FreeBSD uses ELF, but the linker crashes with Elf comdats with the following message:
-@@ -2238,7 +2240,7 @@ char *obj_mangle2(Symbol *s,char *dest, size_t *destlen)
+@@ -2240,7 +2242,7 @@ char *obj_mangle2(Symbol *s,char *dest, size_t *destlen)
              }
              break;
          case mTYman_std:
--#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
              if (tyfunc(s->ty()) && !variadic(s->Stype))
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
-diff --git a/src/dmd/backend/global.h b/src/dmd/backend/global.h
-index 27068e956..9c893ab09 100644
---- a/src/dmd/backend/global.h
-+++ b/src/dmd/backend/global.h
-@@ -489,7 +489,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
+diff --git a/src/dmd/backend/global.d b/src/dmd/backend/global.d
+index 0b8ed4423..a858de68d 100644
+--- a/src/dmd/backend/global.d
++++ b/src/dmd/backend/global.d
+@@ -499,7 +499,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
  void dwarf_CFA_offset(int reg, int offset);
  void dwarf_CFA_args_size(size_t sz);
  
--// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+ elem *exp_isconst();
+ elem *lnx_builtin_next_arg(elem *efunc,list_t arglist);
+ char *lnx_redirect_funcname(const(char)*);
+diff --git a/src/dmd/backend/global.h b/src/dmd/backend/global.h
+index cb70dab2a..308f345a8 100644
+--- a/src/dmd/backend/global.h
++++ b/src/dmd/backend/global.h
+@@ -491,7 +491,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
+ void dwarf_CFA_offset(int reg, int offset);
+ void dwarf_CFA_args_size(size_t sz);
+ 
+-// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++// TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  elem *exp_isconst();
  elem *lnx_builtin_next_arg(elem *efunc,list_t arglist);
  char *lnx_redirect_funcname(const char *);
 diff --git a/src/dmd/backend/machobj.c b/src/dmd/backend/machobj.c
-index d8ea573f0..90e0af627 100644
+index a6e499918..17b8b8373 100644
 --- a/src/dmd/backend/machobj.c
 +++ b/src/dmd/backend/machobj.c
 @@ -18,11 +18,11 @@
@@ -690,69 +799,181 @@ index d8ea573f0..90e0af627 100644
  #include        <malloc.h>
  #endif
  
--#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __sun
-+#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __sun || __PowerNex__
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
  #include        <signal.h>
  #include        <unistd.h>
  #endif
-@@ -2092,7 +2092,7 @@ char *obj_mangle2(Symbol *s,char *dest)
+@@ -2094,7 +2094,7 @@ char *obj_mangle2(Symbol *s,char *dest)
                  *p = toupper(*p);
              break;
          case mTYman_std:
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
              if (tyfunc(s->ty()) && !variadic(s->Stype))
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
+diff --git a/src/dmd/backend/nteh.c b/src/dmd/backend/nteh.c
+index f0dfb8e3d..52103f359 100644
+--- a/src/dmd/backend/nteh.c
++++ b/src/dmd/backend/nteh.c
+@@ -313,7 +313,7 @@ void nteh_prolog(CodeBuilder& cdb)
+         /* An sindex value of -2 is a magic value that tells the
+          * stack unwinder to skip this frame.
+          */
+-        assert(config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_OPENBSD | EX_OPENBSD64 | EX_DRAGONFLYBSD64));
++        assert(config.exe & (EX_LINUX | EX_LINUX64 | EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 | EX_SOLARIS | EX_SOLARIS64 | EX_OPENBSD | EX_OPENBSD64 | EX_DRAGONFLYBSD64 | EX_POWERNEX64));
+         cs.Iop = 0x68;
+         cs.Iflags = 0;
+         cs.Irex = 0;
 diff --git a/src/dmd/backend/obj.h b/src/dmd/backend/obj.h
-index 5820eee6e..d6610d969 100644
+index 2fe132ec0..62b16f7b9 100644
 --- a/src/dmd/backend/obj.h
 +++ b/src/dmd/backend/obj.h
+@@ -24,7 +24,7 @@ struct seg_data;
+ 
+ #if TARGET_WINDOS
+ #define OMF 1
+-#elif (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS)
++#elif (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+ #define ELF 1
+ #elif TARGET_OSX
+ #define MACH 1
+@@ -107,7 +107,7 @@ struct seg_data;
+ 
+         static void gotref(symbol *s);
+ 
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+         static unsigned addstr(Outbuffer *strtab, const char *);
+         static symbol *getGOTsym();
+         static void refGOTsym();
 @@ -193,7 +193,7 @@ class Obj
  
      static void gotref(symbol *s);
  
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      static unsigned addstr(Outbuffer *strtab, const char *);
      static symbol *getGOTsym();
      static void refGOTsym();
 diff --git a/src/dmd/backend/optabgen.c b/src/dmd/backend/optabgen.c
-index d52920a00..d1a6be11e 100644
+index 890c20b46..04b7b0f95 100644
 --- a/src/dmd/backend/optabgen.c
 +++ b/src/dmd/backend/optabgen.c
 @@ -1035,7 +1035,7 @@ void dotytab()
              case TYcldouble:
  #if TARGET_OSX
                  sz = 16;
--#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#elif TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
                  sz = 4;
  #elif TARGET_WINDOS
                  sz = 2;
+diff --git a/src/dmd/backend/os.c b/src/dmd/backend/os.c
+index 8c0a0f413..9439ed8d2 100644
+--- a/src/dmd/backend/os.c
++++ b/src/dmd/backend/os.c
+@@ -20,7 +20,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+@@ -628,7 +628,7 @@ int os_file_exists(const char *name)
+     else
+         result = 1;
+     return result;
+-#elif __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#elif __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     struct stat buf;
+ 
+     return stat(name,&buf) == 0;        /* file exists if stat succeeded */
+@@ -705,7 +705,7 @@ char *file_8dot3name(const char *filename)
+ 
+ int file_write(char *name, void *buffer, unsigned len)
+ {
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     int fd;
+     ssize_t numwritten;
+ 
+@@ -778,7 +778,7 @@ err:
+ 
+ int file_createdirs(char *name)
+ {
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     return 1;
+ #endif
+ #if _WIN32
+@@ -884,6 +884,18 @@ int os_critsecsize64()
+ }
+ #endif
+ 
++#if __PowerNex__
++int os_critsecsize32()
++{
++    return 4; // sizeof(pthread_mutex_t) on 32 bit
++}
++
++int os_critsecsize64()
++{
++    return 8; // sizeof(pthread_mutex_t) on 64 bit
++}
++#endif
++
+ #if __APPLE__
+ int os_critsecsize32()
+ {
 diff --git a/src/dmd/backend/out.c b/src/dmd/backend/out.c
-index 7ac9c8603..4556fcc9b 100644
+index c5ba3d8bd..6dfa87a58 100644
 --- a/src/dmd/backend/out.c
 +++ b/src/dmd/backend/out.c
-@@ -376,7 +376,7 @@ void dt_writeToObj(Obj& objmod, dt_t *dt, int seg, targ_size_t& offset)
+@@ -375,7 +375,7 @@ void dt_writeToObj(Obj& objmod, dt_t *dt, int seg, targ_size_t& offset)
                  if (tybasic(dt->Dty) == TYcptr)
                      objmod.reftocodeseg(seg,offset,dt->DTabytes);
                  else
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
                      objmod.reftodatseg(seg,offset,dt->DTabytes,dt->DTseg,flags);
  #else
                  /*else*/ if (dt->DTseg == DATA)
+diff --git a/src/dmd/backend/strtold.c b/src/dmd/backend/strtold.c
+index 9bd708149..fa1095b3b 100644
+--- a/src/dmd/backend/strtold.c
++++ b/src/dmd/backend/strtold.c
+@@ -19,7 +19,7 @@
+ #include        <fenv.h>
+ #include        <fltpnt.h>
+ #endif
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ #include        <errno.h>
+ #endif
+ 
+@@ -31,7 +31,7 @@ extern char * __cdecl __locale_decpoint;
+ void __pascal __set_errno (int an_errno);
+ #endif
+ 
+-#if _WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if _WIN32 || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ 
+ #if 0
+ /* This is for compilers that don't support hex float literals,
 diff --git a/src/dmd/backend/token.h b/src/dmd/backend/token.h
-index 6256500c4..5eff1434e 100644
+index 0a017029e..13828ebf8 100644
 --- a/src/dmd/backend/token.h
 +++ b/src/dmd/backend/token.h
 @@ -171,7 +171,7 @@ enum TK {
          TK_stdcall,
          TK_syscall,
          TK_try,
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          TK_attribute,
          TK_extension,
          TK_format,
@@ -760,21 +981,43 @@ index 6256500c4..5eff1434e 100644
          TKandand,TKshl,TKshr,TKrcur,TKeq,TKaddass,TKminass,TKmulass,TKdivass,
          TKmodass,TKshrass,TKshlass,TKandass,TKxorass,TKorass,TKsemi,
          TKadd,TKellipsis,
--#if !TX86 || TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if !TX86 || TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if !TX86 || TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if !TX86 || TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
          TKdollar,
  #endif
  
+diff --git a/src/dmd/backend/ty.d b/src/dmd/backend/ty.d
+index f0b3c5d66..64ac8e24e 100644
+--- a/src/dmd/backend/ty.d
++++ b/src/dmd/backend/ty.d
+@@ -184,7 +184,7 @@ enum
+     mTYnothrow      = 0x00200000,    // nothrow function
+ 
+     // Used only by C/C++ compiler
+-//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+     mTYnoret        = 0x01000000,    // function has no return
+     mTYtransu       = 0x01000000,    // transparent union
+ //#else
+@@ -198,7 +198,7 @@ enum
+     mTYsyscall      = 0x40000000,
+     mTYjava         = 0x80000000,
+ 
+-//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++//#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
+ //    mTYTFF          = 0xFE000000,
+ //#else
+     mTYTFF          = 0xFF000000,
 diff --git a/src/dmd/backend/ty.h b/src/dmd/backend/ty.h
-index 188ed4818..628ca9733 100644
+index 80f04bbcc..b80d67362 100644
 --- a/src/dmd/backend/ty.h
 +++ b/src/dmd/backend/ty.h
 @@ -180,7 +180,7 @@ enum
      mTYnothrow      = 0x00200000,    // nothrow function
  
      // Used only by C/C++ compiler
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      mTYnoret        = 0x01000000,    // function has no return
      mTYtransu       = 0x01000000,    // transparent union
  #else
@@ -782,8 +1025,8 @@ index 188ed4818..628ca9733 100644
      mTYsyscall      = 0x40000000,
      mTYjava         = 0x80000000,
  
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      mTYTFF          = 0xFE000000,
  #else
      mTYTFF          = 0xFF000000,
@@ -791,29 +1034,74 @@ index 188ed4818..628ca9733 100644
  /* Array to give the 'relaxed' type for relaxed type checking   */
  extern unsigned char _tyrelax[];
  #define type_relax      (config.flags3 & CFG3relax)     // !=0 if relaxed type checking
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
  #define type_semirelax  (config.flags3 & CFG3semirelax) // !=0 if semi-relaxed type checking
  #else
  #define type_semirelax  type_relax
+diff --git a/src/dmd/backend/util2.c b/src/dmd/backend/util2.c
+index 05c1c1b30..d84f453f2 100644
+--- a/src/dmd/backend/util2.c
++++ b/src/dmd/backend/util2.c
+@@ -141,7 +141,7 @@ void util_progress(int linnum)
+ 
+ #endif
+ 
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || _MSC_VER
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__ || _MSC_VER
+ void util_progress()
+ {
+ }
 diff --git a/src/dmd/backend/var.c b/src/dmd/backend/var.c
-index 27bbe037a..1cdc78c84 100644
+index ed4b85983..3313ab20b 100644
 --- a/src/dmd/backend/var.c
 +++ b/src/dmd/backend/var.c
 @@ -57,7 +57,7 @@ int linkage_spec = 0;           /* using the default                    */
  #if MEMMODELS == 1
  tym_t functypetab[LINK_MAXDIM] =
  {
--#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS
-+#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX
+-#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS
++#if TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_DRAGONFLYBSD || TARGET_SOLARIS || TARGET_POWERNEX
      TYnfunc,
      TYnpfunc,
      TYnpfunc,
+diff --git a/src/dmd/cli.d b/src/dmd/cli.d
+index 400d9773a..22b227c8b 100644
+--- a/src/dmd/cli.d
++++ b/src/dmd/cli.d
+@@ -26,6 +26,7 @@ enum TargetOS
+     freeBSD = 8,
+     solaris = 16,
+     dragonFlyBSD = 32,
++    powerNex = 64,
+ }
+ 
+ // Detect the current TargetOS
+@@ -53,6 +54,10 @@ else version(Solaris)
+ {
+     private enum targetOS = TargetOS.solaris;
+ }
++else version(PowerNex)
++{
++    private enum targetOS = TargetOS.powerNex;
++}
+ else
+ {
+     private enum targetOS = TargetOS.all;
+@@ -266,7 +271,7 @@ dmd -cov -unittest myprog.d
+         ),
+         Option("fPIC",
+             "generate position independent code",
+-            TargetOS.linux
++            TargetOS.linux | TargetOS.powerNex
+         ),
+         Option("g",
+             "add symbolic debug info",
 diff --git a/src/dmd/cond.d b/src/dmd/cond.d
-index 7a8545b96..9e4727de5 100644
+index 876253df0..28af167e8 100644
 --- a/src/dmd/cond.d
 +++ b/src/dmd/cond.d
-@@ -584,6 +584,7 @@ extern (C++) final class VersionCondition : DVCondition
+@@ -581,6 +581,7 @@ extern (C++) final class VersionCondition : DVCondition
              case "Win32":
              case "Win64":
              case "linux":
@@ -821,42 +1109,47 @@ index 7a8545b96..9e4727de5 100644
              case "OSX":
              case "iOS":
              case "TVOS":
+diff --git a/src/dmd/dmsc.d b/src/dmd/dmsc.d
+index 61265fb24..723cc57ab 100644
+--- a/src/dmd/dmsc.d
++++ b/src/dmd/dmsc.d
+@@ -107,7 +107,8 @@ void backend_init()
+              global.params.isFreeBSD ||
+              global.params.isOpenBSD ||
+              global.params.isDragonFlyBSD ||
+-             global.params.isSolaris)
++             global.params.isSolaris ||
++             global.params.isPowerNex)
+     {
+         exe = params.pic == 0;
+     }
 diff --git a/src/dmd/e2ir.d b/src/dmd/e2ir.d
-index 3b2e903ed..170d59c5d 100644
+index 8a4e540ce..57db54208 100644
 --- a/src/dmd/e2ir.d
 +++ b/src/dmd/e2ir.d
-@@ -291,7 +291,8 @@ private elem *callfunc(Loc loc,
-         if ((global.params.isLinux ||
+@@ -289,7 +289,8 @@ private elem *callfunc(const ref Loc loc,
               global.params.isOSX ||
               global.params.isFreeBSD ||
--             global.params.isSolaris) && tf.linkage != LINKd)
+              global.params.isDragonFlyBSD ||
+-             global.params.isSolaris) && tf.linkage != LINK.d)
 +             global.params.isSolaris ||
-+             global.params.isPowerNex) && tf.linkage != LINKd)
++             global.params.isPowerNex) && tf.linkage != LINK.d)
          {
                  // ehidden goes last on Linux/OSX C++
          }
-@@ -1988,7 +1989,7 @@ elem *toElem(Expression e, IRState *irs)
-                 {
-                     ts = symbol_genauto(Type_toCtype(t1));
-                     int rtl;
--                    if (global.params.isLinux || global.params.isFreeBSD || global.params.isSolaris ||
-+                    if (global.params.isLinux || global.params.isFreeBSD || global.params.isSolaris || global.params.isPowerNex ||
-                         global.params.is64bit && global.params.isWindows)
-                         rtl = RTLSYM__DINVARIANT;
-                     else
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 4a90a82f0..66ad0f5b0 100644
+index 357513461..c17032dda 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -31,6 +31,7 @@ enum IN_GCC     = xversion!`IN_GCC`;
- enum TARGET_LINUX   = xversion!`linux`;
- enum TARGET_OSX     = xversion!`OSX`;
- enum TARGET_FREEBSD = xversion!`FreeBSD`;
-+enum TARGET_POWERNEX = xversion!`PowerNex`;
- enum TARGET_OPENBSD = xversion!`OpenBSD`;
- enum TARGET_SOLARIS = xversion!`Solaris`;
- enum TARGET_WINDOS  = xversion!`Windows`;
-@@ -94,6 +95,7 @@ struct Param
+@@ -33,6 +33,7 @@ enum TARGET : bool
+     Solaris      = xversion!`Solaris`,
+     Windows      = xversion!`Windows`,
+     DragonFlyBSD = xversion!`DragonFlyBSD`,
++    PowerNex = xversion!`PowerNex`,
+ }
+ 
+ enum CHECKENABLE : ubyte
+@@ -108,6 +109,7 @@ struct Param
      bool is64bit = (size_t.sizeof == 8);  // generate 64 bit code; true by default for 64 bit dmd
      bool isLP64;            // generate code for LP64
      bool isLinux;           // generate code for linux
@@ -864,44 +1157,44 @@ index 4a90a82f0..66ad0f5b0 100644
      bool isOSX;             // generate code for Mac OSX
      bool isWindows;         // generate code for Windows
      bool isFreeBSD;         // generate code for FreeBSD
-@@ -307,7 +309,7 @@ struct Global
+@@ -310,7 +312,7 @@ struct Global
          {
              obj_ext = "obj";
          }
--        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              obj_ext = "o";
          }
-@@ -319,7 +321,7 @@ struct Global
+@@ -322,7 +324,7 @@ struct Global
          {
              lib_ext = "lib";
          }
--        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              lib_ext = "a";
          }
-@@ -331,7 +333,7 @@ struct Global
+@@ -334,7 +336,7 @@ struct Global
          {
              dll_ext = "dll";
          }
--        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              dll_ext = "so";
          }
-@@ -347,7 +349,7 @@ struct Global
+@@ -350,7 +352,7 @@ struct Global
          {
              run_noext = false;
          }
--        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              // Allow 'script' D source files to have no extension.
              run_noext = true;
 diff --git a/src/dmd/globals.h b/src/dmd/globals.h
-index 07538b8ff..aa56afaba 100644
+index 6b533bdee..d5d965181 100644
 --- a/src/dmd/globals.h
 +++ b/src/dmd/globals.h
 @@ -85,6 +85,7 @@ struct Param
@@ -912,16 +1205,56 @@ index 07538b8ff..aa56afaba 100644
      bool isOSX;         // generate code for Mac OSX
      bool isWindows;     // generate code for Windows
      bool isFreeBSD;     // generate code for FreeBSD
+diff --git a/src/dmd/glue.d b/src/dmd/glue.d
+index b3a478afa..694088246 100644
+--- a/src/dmd/glue.d
++++ b/src/dmd/glue.d
+@@ -892,7 +892,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
+         if (fd.isMain() && onlyOneMain(fd.loc))
+         {
+             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
+-                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
++                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
+             {
+                 objmod.external_def("_main");
+             }
+@@ -912,7 +912,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
+         else if (fd.isRtInit())
+         {
+             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
+-                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris ||
++                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex ||
+                 global.params.mscoff)
+             {
+                 objmod.ehsections();   // initialize exception handling sections
+@@ -1104,7 +1104,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
+         pi++;
+     }
+ 
+-    if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris) &&
++    if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex) &&
+          fd.linkage != LINK.d && shidden && sthis)
+     {
+         /* swap shidden and sthis
+@@ -1339,7 +1339,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
+         }
+     }
+ 
+-    if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
++    if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
+     {
+         // A hack to get a pointer to this function put in the .dtors segment
+         if (fd.ident && memcmp(fd.ident.toChars(), "_STD".ptr, 4) == 0)
 diff --git a/src/dmd/lib.d b/src/dmd/lib.d
-index 68e012e40..c48aececa 100644
+index 2f60681a1..a87a80138 100644
 --- a/src/dmd/lib.d
 +++ b/src/dmd/lib.d
-@@ -28,7 +28,7 @@ static if (TARGET_WINDOS)
+@@ -28,7 +28,7 @@ static if (TARGET.Windows)
      import dmd.libomf;
      import dmd.libmscoff;
  }
--else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
  {
      import dmd.libelf;
  }
@@ -929,28 +1262,19 @@ index 68e012e40..c48aececa 100644
          {
              return (global.params.mscoff || global.params.is64bit) ? LibMSCoff_factory() : LibOMF_factory();
          }
--        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              return LibElf_factory();
          }
 diff --git a/src/dmd/mars.d b/src/dmd/mars.d
-index 6344b54cd..a337b15c4 100644
+index 674f26dbb..f49d6dc4f 100644
 --- a/src/dmd/mars.d
 +++ b/src/dmd/mars.d
-@@ -75,7 +75,7 @@ private void logo()
-  */
- private  void usage()
- {
--    static if (TARGET_LINUX)
-+    static if (TARGET_LINUX || TARGET_POWERNEX)
-     {
-         const(char)* fpic = "\n  -fPIC            generate position independent code";
-     }
-@@ -423,6 +423,10 @@ Language changes listed by -transition=id:
-         {
-             browse("http://dlang.org/dmd-openbsd.html");
+@@ -326,6 +326,10 @@ private int tryMain(size_t argc, const(char)** argv)
+             browse("http://dlang.org/dmd-dragonflybsd.html");
          }
+         */
 +        version (PowerNex)
 +        {
 +            browse("http://powernex.net/dmd");
@@ -958,38 +1282,38 @@ index 6344b54cd..a337b15c4 100644
          return EXIT_SUCCESS;
      }
  
-@@ -464,7 +468,7 @@ Language changes listed by -transition=id:
+@@ -372,7 +376,7 @@ private int tryMain(size_t argc, const(char)** argv)
      {
          global.params.pic = 1;
      }
--    static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+    static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-    static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++    static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
      {
          if (global.params.lib && global.params.dll)
-             error(Loc(), "cannot mix -lib and -shared");
-@@ -642,7 +646,7 @@ Language changes listed by -transition=id:
+             error(Loc.initial, "cannot mix -lib and -shared");
+@@ -582,7 +586,7 @@ private int tryMain(size_t argc, const(char)** argv)
                  libmodules.push(files[i]);
                  continue;
              }
--            static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+            static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-            static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++            static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
              {
                  if (FileName.equals(ext, global.dll_ext))
                  {
-@@ -1282,7 +1286,7 @@ private void setDefaultLibrary()
+@@ -1248,7 +1252,7 @@ private void setDefaultLibrary()
              else
                  global.params.defaultlibname = "phobos";
          }
--        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        else static if (TARGET_LINUX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        else static if (TARGET.Linux || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
          {
              global.params.defaultlibname = "libphobos2.a";
          }
-@@ -1353,6 +1357,13 @@ private void addDefaultVersionIdentifiers()
+@@ -1329,6 +1333,13 @@ void addDefaultVersionIdentifiers()
          VersionCondition.addPredefinedGlobalIdent("ELFv1");
          global.params.isSolaris = true;
      }
-+    else static if (TARGET_POWERNEX)
++    else static if (TARGET.PowerNex)
 +    {
 +        VersionCondition.addPredefinedGlobalIdent("Posix");
 +        VersionCondition.addPredefinedGlobalIdent("PowerNex");
@@ -999,133 +1323,235 @@ index 6344b54cd..a337b15c4 100644
      else
      {
          static assert(0, "fix this");
-@@ -1610,7 +1621,7 @@ private bool parseCommandLine(const ref Strings arguments, const size_t argc, re
-             }
-             else if (strcmp(p + 1, "fPIC") == 0)
+@@ -1592,7 +1603,7 @@ private bool parseCommandLine(const ref Strings arguments, const size_t argc, re
+                 params.dll = true;
+             else if (arg == "-fPIC")
              {
--                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+                static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-                static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++                static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
                  {
                      params.pic = 1;
                  }
 diff --git a/src/dmd/mars.h b/src/dmd/mars.h
-index 709256cb8..fd19a9fba 100644
+index e360a1f33..19a1babfe 100644
 --- a/src/dmd/mars.h
 +++ b/src/dmd/mars.h
 @@ -41,6 +41,7 @@ Macros defined by the compiler, not the code:
-         __FreeBSD__     FreeBSD
-         __OpenBSD__     OpenBSD
-         __sun           Solaris, OpenSolaris, SunOS, OpenIndiana, etc
+         __OpenBSD__         OpenBSD
+         __DragonFly__       DragonFlyBSD
+         __sun               Solaris, OpenSolaris, SunOS, OpenIndiana, etc
 +        __PowerNex__    PowerNex
  
  For the target systems, there are the target operating system and
  the target object file format:
-@@ -52,6 +53,7 @@ the target object file format:
-         TARGET_FREEBSD  Covers 32 and 64 bit FreeBSD
-         TARGET_OPENBSD  Covers 32 and 64 bit OpenBSD
-         TARGET_SOLARIS  Covers 32 and 64 bit Solaris
-+        TARGET_POWERNEX Covers 64 bit PowerNex
+@@ -53,6 +54,7 @@ the target object file format:
+         TARGET_OPENBSD      Covers 32 and 64 bit OpenBSD
+         TARGET_DRAGONFLYBSD Covers 64 bit DragonFlyBSD
+         TARGET_SOLARIS      Covers 32 and 64 bit Solaris
++        TARGET_POWERNEX     Covers 64 bit PowerNex
  
      It is expected that the compiler for each platform will be able
      to generate 32 and 64 bit code from the same compiler binary.
+diff --git a/src/dmd/root/object.h b/src/dmd/root/object.h
+index f20433cca..b81c3b948 100644
+--- a/src/dmd/root/object.h
++++ b/src/dmd/root/object.h
+@@ -10,7 +10,7 @@
+ #ifndef OBJECT_H
+ #define OBJECT_H
+ 
+-#define POSIX (__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun)
++#define POSIX (__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__)
+ 
+ #if __DMC__
+ #pragma once
 diff --git a/src/dmd/target.d b/src/dmd/target.d
-index 85e62f0a4..f64257026 100644
+index 5d4a15e29..621120612 100644
 --- a/src/dmd/target.d
 +++ b/src/dmd/target.d
-@@ -84,7 +84,7 @@ struct Target
+@@ -113,7 +113,7 @@ struct Target
              ptrsize = 8;
              classinfosize = 0x98; // 152
          }
--        if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris)
-+        if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris || global.params.isPowerNex)
+-        if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
++        if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
          {
              realsize = 12;
              realpad = 2;
-@@ -117,7 +117,7 @@ struct Target
+@@ -146,7 +146,7 @@ struct Target
              assert(0);
          if (global.params.is64bit)
          {
--            if (global.params.isLinux || global.params.isFreeBSD || global.params.isSolaris)
-+            if (global.params.isLinux || global.params.isFreeBSD || global.params.isSolaris || global.params.isPowerNex)
+-            if (global.params.isLinux || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
++            if (global.params.isLinux || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
              {
                  realsize = 16;
                  realpad = 6;
-@@ -133,7 +133,7 @@ struct Target
-         if (global.params.is64bit && global.params.isWindows)
+@@ -163,7 +163,7 @@ struct Target
              c_long_doublesize = 8;
  
--        cppExceptions = global.params.isLinux || global.params.isFreeBSD ||
-+        cppExceptions = global.params.isLinux || global.params.isFreeBSD || global.params.isPowerNex ||
-             global.params.isOSX;
-     }
+         cppExceptions = global.params.isLinux || global.params.isFreeBSD ||
+-            global.params.isDragonFlyBSD || global.params.isOSX;
++            global.params.isDragonFlyBSD || global.params.isPowerNex || global.params.isOSX;
  
-@@ -150,7 +150,7 @@ struct Target
-         case Tcomplex80:
+         int64Mangle  = global.params.isOSX ? 'x' : 'l';
+         uint64Mangle = global.params.isOSX ? 'y' : 'm';
+@@ -187,7 +187,7 @@ struct Target
              return Target.realalignsize;
          case Tcomplex32:
--            if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris)
-+            if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris || global.params.isPowerNex)
+             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD ||
+-                global.params.isDragonFlyBSD || global.params.isSolaris)
++                global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
                  return 4;
              break;
          case Tint64:
-@@ -158,7 +158,7 @@ struct Target
-         case Tfloat64:
+@@ -196,7 +196,7 @@ struct Target
          case Timaginary64:
          case Tcomplex64:
--            if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris)
-+            if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris || global.params.isPowerNex)
+             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD ||
+-                global.params.isDragonFlyBSD || global.params.isSolaris)
++                global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
                  return global.params.is64bit ? 8 : 4;
              break;
          default:
-@@ -221,6 +221,11 @@ struct Target
+@@ -267,6 +267,11 @@ struct Target
              // sizeof(pthread_mutex_t) for Solaris.
              return 24;
          }
 +        else if (global.params.isPowerNex)
 +        {
 +            // sizeof(pthread_mutex_t) for PowerNex.
-+            return 64;
++            return 8;
 +        }
          assert(0);
      }
  
-@@ -235,7 +240,7 @@ struct Target
-         {
+@@ -284,7 +289,7 @@ struct Target
              return Type.tchar.pointerTo();
          }
--        else if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris || global.params.isOSX)
-+        else if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isSolaris || global.params.isPowerNex || global.params.isOSX)
+         else if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isDragonFlyBSD ||
+-            global.params.isSolaris || global.params.isOSX)
++            global.params.isSolaris || global.params.isPowerNex || global.params.isOSX)
          {
              if (global.params.is64bit)
              {
-@@ -437,7 +442,7 @@ struct Target
- 
+@@ -488,7 +493,7 @@ struct Target
+      */
      extern (C++) static const(char)* toCppMangle(Dsymbol s)
      {
--        static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.DragonFlyBSD || TARGET.Solaris)
++        static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.DragonFlyBSD || TARGET.Solaris || TARGET.PowerNex)
              return toCppMangleItanium(s);
-         else static if (TARGET_WINDOS)
+         else static if (TARGET.Windows)
              return toCppMangleMSVC(s);
-@@ -447,7 +452,7 @@ struct Target
- 
+@@ -505,7 +510,7 @@ struct Target
+      */
      extern (C++) static const(char)* cppTypeInfoMangle(ClassDeclaration cd)
      {
--        static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS)
-+        static if (TARGET_LINUX || TARGET_OSX || TARGET_FREEBSD || TARGET_OPENBSD || TARGET_SOLARIS || TARGET_POWERNEX)
+-        static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD)
++        static if (TARGET.Linux || TARGET.OSX || TARGET.FreeBSD || TARGET.OpenBSD || TARGET.Solaris || TARGET.DragonFlyBSD || TARGET.PowerNex)
              return cppTypeInfoMangleItanium(cd);
-         else static if (TARGET_WINDOS)
+         else static if (TARGET.Windows)
              return cppTypeInfoMangleMSVC(cd);
+diff --git a/src/dmd/tk/filespec.c b/src/dmd/tk/filespec.c
+index 12a6c1422..75b7cf505 100644
+--- a/src/dmd/tk/filespec.c
++++ b/src/dmd/tk/filespec.c
+@@ -25,7 +25,7 @@
+ #include        <ctype.h>
+ #endif
+ 
+-#if M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ #include        <stdlib.h>
+ #include        <unistd.h>
+ #endif
+@@ -87,7 +87,7 @@ char * filespecaddpath(const char *path,const char *filename)
+ /**********************/
+ char * filespecrootpath(char *filespec)
+ {
+-#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+ #define DIRCHAR '/'
+ #endif
+ #if MSDOS || __OS2__ || __NT__ || _WIN32
+@@ -112,7 +112,7 @@ char * filespecrootpath(char *filespec)
+ #endif
+ 
+     /* get current working directory path */
+-#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     cwd_t = (char *)getcwd(NULL, 256);
+ #endif
+ #if MSDOS || __OS2__ || __NT__ || _WIN32
+@@ -134,7 +134,7 @@ char * filespecrootpath(char *filespec)
+     if (cwd[strlen(cwd) - 1] == DIRCHAR)
+         cwd[strlen(cwd) - 1] = '\0';
+ #endif
+-#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     free(cwd_t);
+ #endif
+     p = filespec;
+@@ -151,7 +151,7 @@ char * filespecrootpath(char *filespec)
+             {
+                 cwd_t = cwd;
+                 cwd = (char *)mem_calloc(strlen(cwd_t) + 1 + strlen(p) + 1);
+-#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+                 sprintf(cwd, "%s/%s", cwd_t, p);  /* add relative directory */
+ #endif
+ #if MSDOS || __OS2__ || __NT__ || _WIN32
+@@ -172,7 +172,7 @@ char * filespecrootpath(char *filespec)
+         {   /* ... save remaining string */
+             cwd_t = cwd;
+             cwd = (char *)mem_calloc(strlen(cwd_t) + 1 + strlen(p) + 1);
+-#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if SUN || M_UNIX || M_XENIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+             sprintf(cwd, "%s/%s", cwd_t, p);  /* add relative directory */
+ #endif
+ #if MSDOS || __OS2__ || __NT__ || _WIN32
+@@ -403,7 +403,7 @@ char * filespecbackup(const char *filespec)
+ #if MSDOS || __OS2__ || __NT__ || _WIN32
+     return filespecforceext(filespec,"BAK");
+ #endif
+-#if BSDUNIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if BSDUNIX || __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+     char *p,*f;
+ 
+     /* Prepend .B to file name, if it isn't already there       */
+diff --git a/src/dmd/tk/mem.c b/src/dmd/tk/mem.c
+index 3b29bcec7..ecfdb5538 100644
+--- a/src/dmd/tk/mem.c
++++ b/src/dmd/tk/mem.c
+@@ -326,7 +326,7 @@ static struct mem_debug
+         11111,
+         0,
+         BEFOREVAL,
+-#if !(__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun)
++#if !(__linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__)
+         AFTERVAL
+ #endif
+ };
+@@ -842,7 +842,7 @@ void mem_init()
+                 mem_numalloc = 0;
+                 mem_maxalloc = 0;
+                 mem_alloclist.Mnext = NULL;
+-#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun
++#if __linux__ || __APPLE__ || __FreeBSD__ || __OpenBSD__ || __DragonFly__ || __sun || __PowerNex__
+                 *(long *) &(mem_alloclist.data[0]) = AFTERVAL;
+ #endif
+ #endif
 diff --git a/src/dmd/toir.d b/src/dmd/toir.d
-index 233584e44..d124a7852 100644
+index 97b87785e..77bdd6582 100644
 --- a/src/dmd/toir.d
 +++ b/src/dmd/toir.d
 @@ -1011,7 +1011,7 @@ Lagain:
          if (tns.ty != Tstruct)
          {
  L2:
--            if (global.params.isLinux && tf.linkage != LINKd && !global.params.is64bit)
-+            if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINKd && !global.params.is64bit)
+-            if (global.params.isLinux && tf.linkage != LINK.d && !global.params.is64bit)
++            if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINK.d && !global.params.is64bit)
              {
                                                  // 32 bit C/C++ structs always on stack
              }
@@ -1133,18 +1559,18 @@ index 233584e44..d124a7852 100644
      if (tns.ty == Tstruct)
      {
          StructDeclaration sd = (cast(TypeStruct)tns).sym;
--        if (global.params.isLinux && tf.linkage != LINKd && !global.params.is64bit)
-+        if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINKd && !global.params.is64bit)
+-        if (global.params.isLinux && tf.linkage != LINK.d && !global.params.is64bit)
++        if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINK.d && !global.params.is64bit)
          {
              if (sd.ident == Id.__c_long || sd.ident == Id.__c_ulong)
-                 return RETregs;
+                 return RET.regs;
 @@ -1087,7 +1087,7 @@ L2:
-         //printf("  3 RETstack\n");
-         return RETstack;
+         //printf("  3 RET.stack\n");
+         return RET.stack;
      }
--    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isSolaris) &&
-+    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isSolaris || global.params.isPowerNex) &&
-              tf.linkage == LINKc &&
+-    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris) &&
++    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex) &&
+              tf.linkage == LINK.c &&
               tns.iscomplex())
      {
 diff --git a/test/fail_compilation/reserved_version.d b/test/fail_compilation/reserved_version.d
@@ -1173,5 +1599,5 @@ index 89bde619d..096ac3fae 100644
  debug = MSP430;
 +debug = PowerNex;
 -- 
-2.16.1
+2.16.2
 

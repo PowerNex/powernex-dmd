@@ -1,25 +1,27 @@
-From 2b405b7cd23eafb1c1af5dd429e114a1ca6179da Mon Sep 17 00:00:00 2001
+From 8eaa4323735630cd6960b45a29f28a18afd2a6f3 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:06 +0200
 Subject: [PATCH 2/4] Added makefiles for building a PowerNex CC
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
- .gitignore       |   1 +
+ .gitignore       |   3 +
  powernex.mak     |  12 ++
- src/powernex.mak | 632 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 645 insertions(+)
+ src/powernex.mak | 641 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 656 insertions(+)
  create mode 100644 powernex.mak
  create mode 100644 src/powernex.mak
 
 diff --git a/.gitignore b/.gitignore
-index 328643984..1982acea1 100644
+index 30f6d1bb6..433238053 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -38,3 +38,4 @@ tags
- 
- # OSX
- src/optabgen.dSYM/
+@@ -42,3 +42,6 @@ src/optabgen.dSYM/
+ # GCov
+ *.gcno
+ *.gcda
++
++# PowerNex
 +powernex-dmd
 diff --git a/powernex.mak b/powernex.mak
 new file mode 100644
@@ -41,18 +43,18 @@ index 000000000..b66384436
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 diff --git a/src/powernex.mak b/src/powernex.mak
 new file mode 100644
-index 000000000..eae0181dd
+index 000000000..acbc44a0b
 --- /dev/null
 +++ b/src/powernex.mak
-@@ -0,0 +1,632 @@
+@@ -0,0 +1,641 @@
 +################################################################################
 +# Important variables:
 +# --------------------
 +#
-+# HOST_CSS:				Host C++ compiler to use (g++,clang++)
-+# HOST_DMD: 			Host D compiler to use for bootstrapping
-+# AUTO_BOOTSTRAP:		Enable auto-boostrapping by download a stable DMD binary
-+# INSTALL_DIR:			Installation folder to use
++# HOST_CXX:             Host C++ compiler to use (g++,clang++)
++# HOST_DMD:             Host D compiler to use for bootstrapping
++# AUTO_BOOTSTRAP:       Enable auto-boostrapping by download a stable DMD binary
++# INSTALL_DIR:          Installation folder to use
 +#
 +################################################################################
 +# Build modes:
@@ -61,17 +63,31 @@ index 000000000..eae0181dd
 +#
 +# Opt-in build features:
 +#
-+# ENABLE_RELEASE:		Optimized release built (set by BUILD=release)
-+# ENABLE_DEBUG:			Add debug instructions and symbols (set by BUILD=debug)
-+# ENABLE_WARNINGS: 		Enable C++ build warnings
-+# ENABLE_PROFILING:		Build dmd with a profiling recorder (C++)
-+# ENABLE_PGO_USE:		Build dmd with existing profiling information (C++)
-+# 	PGO_DIR:			Directory for profile-guided optimization (PGO) logs
-+# ENABLE_LTO:			Enable link-time optimizations
-+# ENABLE_UNITTEST:		Build dmd with unittests (sets ENABLE_COVERAGE=1)
-+# ENABLE_PROFILE:		Build dmd with a profiling recorder (D)
-+# ENABLE_COVERAGE		Build dmd with coverage counting
-+# ENABLE_SANITIZERS		Build dmd with sanitizer (e.g. ENABLE_SANITIZERS=address,undefined)
++# ENABLE_RELEASE:       Optimized release built (set by BUILD=release)
++# ENABLE_DEBUG:         Add debug instructions and symbols (set by BUILD=debug)
++# ENABLE_WARNINGS:      Enable C++ build warnings
++# ENABLE_PROFILING:     Build dmd with a profiling recorder (C++)
++# ENABLE_PGO_USE:       Build dmd with existing profiling information (C++)
++#   PGO_DIR:            Directory for profile-guided optimization (PGO) logs
++# ENABLE_LTO:           Enable link-time optimizations
++# ENABLE_UNITTEST:      Build dmd with unittests (sets ENABLE_COVERAGE=1)
++# ENABLE_PROFILE:       Build dmd with a profiling recorder (D)
++# ENABLE_COVERAGE       Build dmd with coverage counting
++# ENABLE_SANITIZERS     Build dmd with sanitizer (e.g. ENABLE_SANITIZERS=address,undefined)
++#
++# Targets
++# -------
++#
++# all					Build dmd
++# unittest              Run all unittest blocks
++# cxx-unittest          Check conformance of the C++ headers
++# build-examples        Build DMD as library examples
++# clean                 Remove all generated files
++# man                   Generate the man pages
++# checkwhitespace       Checks for trailing whitespace and tabs
++# zip                   Packs all sources into a ZIP archive
++# gitzip                Packs all sources into a ZIP archive
++# install               Installs dmd into $(INSTALL_DIR)
 +################################################################################
 +
 +# get OS and MODEL
@@ -130,7 +146,7 @@ index 000000000..eae0181dd
 +$(shell mkdir -p $G)
 +
 +ifeq (osx,$(OS))
-+    export MACOSX_DEPLOYMENT_TARGET=10.7
++    export MACOSX_DEPLOYMENT_TARGET=10.9
 +endif
 +
 +HOST_CXX=c++
@@ -145,7 +161,7 @@ index 000000000..eae0181dd
 +
 +# determine whether CXX is gcc or clang based
 +CXX_VERSION:=$(shell $(CXX) --version)
-+ifneq (,$(findstring g++,$(CXX_VERSION))$(findstring gcc,$(CXX_VERSION))$(findstring GCC,$(CXX_VERSION)))
++ifneq (,$(findstring g++,$(CXX_VERSION))$(findstring gcc,$(CXX_VERSION))$(findstring Free Software,$(CXX_VERSION)))
 +	CXX_KIND=g++
 +endif
 +ifneq (,$(findstring clang,$(CXX_VERSION)))
@@ -182,14 +198,14 @@ index 000000000..eae0181dd
 +endif
 +
 +HOST_DMD_VERSION:=$(shell $(HOST_DMD_RUN) --version)
++ifneq (,$(findstring dmd,$(HOST_DMD_VERSION))$(findstring DMD,$(HOST_DMD_VERSION)))
++	HOST_DMD_KIND=dmd
++endif
 +ifneq (,$(findstring gdc,$(HOST_DMD_VERSION))$(findstring GDC,$(HOST_DMD_VERSION)))
 +	HOST_DMD_KIND=gdc
 +endif
 +ifneq (,$(findstring ldc,$(HOST_DMD_VERSION))$(findstring LDC,$(HOST_DMD_VERSION)))
 +	HOST_DMD_KIND=ldc
-+endif
-+ifneq (,$(findstring dmd,$(HOST_DMD_VERSION))$(findstring DMD,$(HOST_DMD_VERSION)))
-+	HOST_DMD_KIND=dmd
 +endif
 +
 +# Compiler Warnings
@@ -222,16 +238,9 @@ index 000000000..eae0181dd
 +	-Wno-logical-op \
 +	-Wno-narrowing \
 +	-Wno-unused-but-set-variable \
-+	-Wno-uninitialized
-+endif
-+# Clang Specific
-+ifeq ($(HOST_CXX_KIND), clang++)
-+WARNINGS += \
-+	-Wno-tautological-constant-out-of-range-compare \
-+	-Wno-tautological-compare \
-+	-Wno-constant-logical-operand \
-+	-Wno-self-assign -Wno-self-assign
-+# -Wno-sometimes-uninitialized
++	-Wno-uninitialized \
++	-Wno-class-memaccess \
++	-Wno-implicit-fallthrough
 +endif
 +else
 +# Default Warnings
@@ -239,9 +248,7 @@ index 000000000..eae0181dd
 +# Clang Specific
 +ifeq ($(CXX_KIND), clang++)
 +WARNINGS += \
-+    -Wno-logical-op-parentheses \
-+    -Wno-dynamic-class-memaccess \
-+    -Wno-switch
++    -Wno-logical-op-parentheses
 +endif
 +endif
 +
@@ -259,7 +266,11 @@ index 000000000..eae0181dd
 +CXXFLAGS += \
 +    -std=gnu++98
 +endif
-+# Default D compiler flags for all source files
++# Clang Specific
++ifeq ($(CXX_KIND), clang++)
++CXXFLAGS += \
++    -xc++
++endif
 +DFLAGS= -version=MARS -version=PowerNex $(PIC)
 +# Enable D warnings
 +DFLAGS += -w -de
@@ -315,9 +326,9 @@ index 000000000..eae0181dd
 +endif
 +
 +# Unique extra flags if necessary
-+DMD_FLAGS  := -I$(D) -I$(ROOT) -Wuninitialized
-+GLUE_FLAGS := -I$(D) -I$(ROOT) -I$(TK) -I$(C)
-+BACK_FLAGS := -I$(ROOT) -I$(TK) -I$(C) -I$G -I$D -DDMDV2=1
++DMD_FLAGS  := -I$D -I$(ROOT) -Wuninitialized
++GLUE_FLAGS := -I$D -I$(ROOT) -I$(TK) -I$C
++BACK_FLAGS := -I$(ROOT) -I$(TK) -I$C -I$G -I$D -DDMDV2=1
 +ROOT_FLAGS := -I$(ROOT)
 +
 +ifeq ($(OS), osx)
@@ -330,14 +341,15 @@ index 000000000..eae0181dd
 +######## DMD frontend source files
 +
 +FRONT_SRCS=$(addsuffix .d, $(addprefix $D/,access aggregate aliasthis apply argtypes arrayop	\
-+	arraytypes astcodegen attrib builtin canthrow clone complex cond constfold		\
++	arraytypes astcodegen attrib builtin canthrow cli clone compiler complex cond constfold	\
 +	cppmangle cppmanglewin ctfeexpr dcast dclass declaration delegatize denum dimport	\
 +	dinifile dinterpret dmacro dmangle dmodule doc dscope dstruct dsymbol dsymbolsem	\
 +	dtemplate dversion escape expression expressionsem func			\
 +	hdrgen id impcnvtab imphint init initsem inline inlinecost intrange	\
-+	json lib link mars mtype nogc nspace objc opover optimize parse permissivevisitor sapply templateparamsem	\
-+	semantic sideeffect statement staticassert target typesem traits transitivevisitor parsetimevisitor visitor	\
-+	typinf utils statement_rewrite_walker statementsem staticcond safe blockexit printast))
++	json lambdacomp lib libelf libmach link mars mtype nogc nspace objc opover optimize parse permissivevisitor sapply templateparamsem	\
++	sideeffect statement staticassert target typesem traits transitivevisitor parsetimevisitor visitor	\
++	typinf utils scanelf scanmach statement_rewrite_walker statementsem staticcond safe blockexit printast \
++	semantic2 semantic3))
 +
 +LEXER_SRCS=$(addsuffix .d, $(addprefix $D/, console entity errors globals id identifier lexer tokens utf))
 +
@@ -349,23 +361,10 @@ index 000000000..eae0181dd
 +	stringtable hash))
 +
 +GLUE_OBJS =
-+
-+ifeq (osx,$(OS))
-+    FRONT_SRCS += $D/libmach.d $D/scanmach.d
-+else
-+    FRONT_SRCS += $D/libelf.d $D/scanelf.d
-+endif
-+
 +G_GLUE_OBJS = $(addprefix $G/, $(GLUE_OBJS))
 +
 +GLUE_SRCS=$(addsuffix .d, $(addprefix $D/,irstate toctype glue gluelayer todt tocsym toir dmsc \
-+	tocvdebug s2ir toobj e2ir eh iasm))
-+
-+ifeq ($(D_OBJC),1)
-+	GLUE_SRCS += $D/objc_glue.d
-+else
-+	GLUE_SRCS += $D/objc_glue_stubs.d
-+endif
++	tocvdebug s2ir toobj e2ir eh iasm objc_glue))
 +
 +DMD_SRCS=$(FRONT_SRCS) $(GLUE_SRCS) $(BACK_HDRS) $(TK_HDRS)
 +
@@ -448,7 +447,7 @@ index 000000000..eae0181dd
 +######## CXX header files (only needed for cxx-unittest)
 +
 +SRC = $(addprefix $D/, aggregate.h aliasthis.h arraytypes.h	\
-+	attrib.h complex_t.h cond.h ctfe.h ctfe.h declaration.h dsymbol.h	\
++	attrib.h compiler.h complex_t.h cond.h ctfe.h ctfe.h declaration.h dsymbol.h	\
 +	enum.h errors.h expression.h globals.h hdrgen.h identifier.h \
 +	id.h import.h init.h intrange.h json.h \
 +	mars.h module.h mtype.h nspace.h objc.h                         \
@@ -581,9 +580,9 @@ index 000000000..eae0181dd
 +
 +# Generic rules for all source files
 +########################################################################
-+# Search the directory $(C) for .c-files when using implicit pattern
++# Search the directory $C for .c-files when using implicit pattern
 +# matching below.
-+#vpath %.c $(C)
++#vpath %.c $C
 +
 +-include $(DEPS)
 +
@@ -599,9 +598,20 @@ index 000000000..eae0181dd
 +	@echo "  (CC)  ROOT_OBJS  $<"
 +	$(CXX) -c -o$@ $(CXXFLAGS) $(ROOT_FLAGS) $(MMD) $<
 +
++################################################################################
++# Generate the man pages
++################################################################################
++
++DMD_MAN_PAGE = $(GENERATED)/docs/man1/dmd.1
++
++$(DMD_MAN_PAGE): dmd/cli.d
++	${MAKE} -C ../docs DMD=$(HOST_DMD_PATH) build
++
++man: $(DMD_MAN_PAGE)
++
 +######################################################
 +
-+install: all
++install: all $(DMD_MAN_PAGE)
 +	$(eval bin_dir=$(if $(filter $(OS),osx), bin, bin$(MODEL)))
 +	mkdir -p $(INSTALL_DIR)/$(OS)/$(bin_dir)
 +	cp $G/dmd $(INSTALL_DIR)/$(OS)/$(bin_dir)/dmd
@@ -655,7 +665,8 @@ index 000000000..eae0181dd
 +ifneq ($(DOCSRC),)
 +
 +# list all files for which documentation should be generated, use sort to remove duplicates
-+SRC_DOCUMENTABLES = $(sort $(ROOT_SRCS) $(DMD_SRCS) $(LEXER_SRCS) $(LEXER_ROOT) $(PARSER_SRCS))
++SRC_DOCUMENTABLES = $(sort $(ROOT_SRCS) $(DMD_SRCS) $(LEXER_SRCS) $(LEXER_ROOT) $(PARSER_SRCS) \
++                           $D/frontend.d)
 +
 +D2HTML=$(foreach p,$1,$(if $(subst package.d,,$(notdir $p)),$(subst /,_,$(subst .d,.html,$p)),$(subst /,_,$(subst /package.d,.html,$p))))
 +HTMLS=$(addprefix $(DOC_OUTPUT_DIR)/, \
@@ -664,8 +675,8 @@ index 000000000..eae0181dd
 +# For each module, define a rule e.g.:
 +# ../web/phobos/dmd_mars.html : dmd/mars.d $(STDDOC) ; ...
 +$(foreach p,$(SRC_DOCUMENTABLES),$(eval \
-+$(DOC_OUTPUT_DIR)/$(call D2HTML,$p) : $p $(STDDOC) $(HOST_DMD_PATH) ;\
-+  $(HOST_DMD_RUN) -of- $(MODEL_FLAG) -J$G -J../res -c -Dd$(DOCSRC) -Idmd\
++$(DOC_OUTPUT_DIR)/$(call D2HTML,$p) : $p $(STDDOC) $(DMD) ;\
++  $(DMD) -o- $(MODEL_FLAG) -J$G -J../res -c -w -Dd$(DOCSRC) -Idmd\
 +  $(DFLAGS) project.ddoc $(STDDOC) -Df$$@ $$<))
 +
 +$(DOC_OUTPUT_DIR) :
@@ -678,5 +689,5 @@ index 000000000..eae0181dd
 +
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 -- 
-2.16.1
+2.16.2
 

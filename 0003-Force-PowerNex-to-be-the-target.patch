@@ -1,4 +1,4 @@
-From ed4d417d3678b1f37a5d25beae5f60dce1ed3931 Mon Sep 17 00:00:00 2001
+From 740ad1ea82ee2a80d93a0817e6bc9762d727b95f Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:44 +0200
 Subject: [PATCH 3/4] Force PowerNex to be the target
@@ -9,10 +9,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 66ad0f5b0..585d25d76 100644
+index c17032dda..f329a7b5a 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -23,7 +23,7 @@ import dmd.identifier;
+@@ -21,7 +21,7 @@ import dmd.identifier;
  
  template xversion(string s)
  {
@@ -20,7 +20,7 @@ index 66ad0f5b0..585d25d76 100644
 +    enum xversion = (s == "PowerNex"); //mixin(`{ version (` ~ s ~ `) return true; else return false; }`)();
  }
  
- enum IN_GCC     = xversion!`IN_GCC`;
+ enum TARGET : bool
 -- 
-2.16.1
+2.16.2
 

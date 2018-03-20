@@ -1,4 +1,4 @@
-From d47f3f51046851ef941a074ae3eb104d9508bc46 Mon Sep 17 00:00:00 2001
+From 38829bfeb191c08e5934992c73ac3715e0c60821 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Thu, 28 Sep 2017 23:08:40 +0200
 Subject: [PATCH 4/4] Added PowerNex reminders to the version output
@@ -9,20 +9,27 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 585d25d76..6e16db038 100644
+index f329a7b5a..58041df19 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -359,8 +359,8 @@ struct Global
+@@ -254,7 +254,7 @@ struct Global
+     bool run_noext;                     // allow -run sources without extensions.
+ 
+     const(char)* copyright = "Copyright (C) 1999-2018 by The D Language Foundation, All Rights Reserved";
+-    const(char)* written = "written by Walter Bright";
++    const(char)* written = "written by Walter Bright\nPowerNex support by Dan Printzell";
+     const(char)* main_d = "__main.d";   // dummy filename for dummy main()
+     Array!(const(char)*)* path;         // Array of char*'s which form the import lookup path
+     Array!(const(char)*)* filePath;     // Array of char*'s which form the file import lookup path
+@@ -361,7 +361,7 @@ struct Global
+         {
              static assert(0, "fix this");
          }
-         copyright = "Copyright (c) 1999-2017 by The D Language Foundation";
--        written = "written by Walter Bright";
 -        _version = (import("VERSION") ~ '\0').ptr;
-+        written = "written by Walter Bright.\nPowerNex support by Dan Printzell";
 +        _version = (import("VERSION") ~ "-PowerNex\0").ptr;
          compiler.vendor = "Digital Mars D";
-         stdmsg = stdout;
-         main_d = "__main.d";
+     }
+ }
 -- 
-2.16.1
+2.16.2
 
