@@ -1,4 +1,4 @@
-From 740ad1ea82ee2a80d93a0817e6bc9762d727b95f Mon Sep 17 00:00:00 2001
+From 87222f83307e5c990428e0d82ae89dbf954879b4 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 25 Aug 2017 02:15:44 +0200
 Subject: [PATCH 3/4] Force PowerNex to be the target
@@ -9,7 +9,7 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index c17032dda..f329a7b5a 100644
+index afc7d0dfe..16611e7bb 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -21,7 +21,7 @@ import dmd.identifier;
@@ -22,5 +22,5 @@ index c17032dda..f329a7b5a 100644
  
  enum TARGET : bool
 -- 
-2.16.2
+2.17.1
 

@@ -1,4 +1,4 @@
-From 3ff9795e04fbb89319cbe3b398d9070dad45de5b Mon Sep 17 00:00:00 2001
+From 3cb361b2ade8b5a719daa44640f8e8a7b7e94b9b Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Tue, 30 Jan 2018 22:39:14 +0100
 Subject: [PATCH 1/4] Added PowerNex to the backend
@@ -6,57 +6,56 @@ Subject: [PATCH 1/4] Added PowerNex to the backend
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
  src/dmd/astbase.d                        |  2 +-
- src/dmd/backend/backconfig.c             | 23 +++++++++++++++++++----
- src/dmd/backend/cc.d                     |  4 ++--
- src/dmd/backend/cc.h                     |  4 ++--
- src/dmd/backend/cdef.d                   |  4 +++-
- src/dmd/backend/cdef.h                   | 26 ++++++++++++++++++++------
- src/dmd/backend/cgcod.c                  |  4 ++--
+ src/dmd/backend/backconfig.c             | 23 +++++++++++++++---
+ src/dmd/backend/cc.d                     |  4 +--
+ src/dmd/backend/cc.h                     |  4 +--
+ src/dmd/backend/cdef.d                   |  4 ++-
+ src/dmd/backend/cdef.h                   | 26 +++++++++++++++-----
+ src/dmd/backend/cgcod.c                  |  4 +--
  src/dmd/backend/cgelem.c                 |  2 +-
- src/dmd/backend/cod1.c                   | 31 ++++++++++++++++---------------
- src/dmd/backend/cod2.c                   |  6 +++---
- src/dmd/backend/cod3.c                   | 24 ++++++++++++------------
- src/dmd/backend/cod4.c                   |  6 +++---
+ src/dmd/backend/cod1.c                   | 31 ++++++++++++------------
+ src/dmd/backend/cod2.c                   |  6 ++---
+ src/dmd/backend/cod3.c                   | 24 +++++++++---------
+ src/dmd/backend/cod4.c                   |  6 ++---
  src/dmd/backend/code_stub.h              |  2 +-
  src/dmd/backend/code_x86.h               |  2 +-
  src/dmd/backend/debug.c                  |  2 +-
  src/dmd/backend/dwarf.c                  |  2 +-
- src/dmd/backend/el.c                     | 14 +++++++-------
- src/dmd/backend/elfobj.c                 |  6 ++++--
+ src/dmd/backend/el.c                     | 14 +++++------
+ src/dmd/backend/elfobj.c                 |  6 +++--
  src/dmd/backend/global.d                 |  2 +-
  src/dmd/backend/global.h                 |  2 +-
- src/dmd/backend/machobj.c                |  6 +++---
+ src/dmd/backend/machobj.c                |  6 ++---
  src/dmd/backend/nteh.c                   |  2 +-
- src/dmd/backend/obj.h                    |  6 +++---
+ src/dmd/backend/obj.h                    |  6 ++---
  src/dmd/backend/optabgen.c               |  2 +-
- src/dmd/backend/os.c                     | 20 ++++++++++++++++----
+ src/dmd/backend/os.c                     | 20 ++++++++++++---
  src/dmd/backend/out.c                    |  2 +-
- src/dmd/backend/strtold.c                |  4 ++--
- src/dmd/backend/token.h                  |  4 ++--
- src/dmd/backend/ty.d                     |  4 ++--
- src/dmd/backend/ty.h                     |  6 +++---
+ src/dmd/backend/strtold.c                |  4 +--
+ src/dmd/backend/token.h                  |  4 +--
+ src/dmd/backend/ty.d                     |  4 +--
+ src/dmd/backend/ty.h                     |  6 ++---
  src/dmd/backend/util2.c                  |  2 +-
  src/dmd/backend/var.c                    |  2 +-
- src/dmd/cli.d                            |  7 ++++++-
+ src/dmd/cli.d                            |  5 ++++
  src/dmd/cond.d                           |  1 +
  src/dmd/dmsc.d                           |  3 ++-
  src/dmd/e2ir.d                           |  3 ++-
- src/dmd/globals.d                        | 10 ++++++----
+ src/dmd/globals.d                        | 10 +++++---
  src/dmd/globals.h                        |  1 +
- src/dmd/glue.d                           |  8 ++++----
- src/dmd/lib.d                            |  4 ++--
- src/dmd/mars.d                           | 19 +++++++++++++++----
+ src/dmd/glue.d                           |  8 +++---
+ src/dmd/lib.d                            |  4 +--
+ src/dmd/mars.d                           | 19 ++++++++++++---
  src/dmd/mars.h                           |  2 ++
  src/dmd/root/object.h                    |  2 +-
- src/dmd/target.d                         | 21 +++++++++++++--------
- src/dmd/tk/filespec.c                    | 14 +++++++-------
- src/dmd/tk/mem.c                         |  4 ++--
- src/dmd/toir.d                           |  6 +++---
+ src/dmd/target.d                         | 23 +++++++++++-------
+ src/dmd/tk/filespec.c                    | 14 +++++------
+ src/dmd/tk/mem.c                         |  4 +--
  test/fail_compilation/reserved_version.d |  3 +++
- 48 files changed, 207 insertions(+), 129 deletions(-)
+ 47 files changed, 204 insertions(+), 126 deletions(-)
 
 diff --git a/src/dmd/astbase.d b/src/dmd/astbase.d
-index 8647cded5..0ca8ba0b0 100644
+index c8001d010..3a1ba82a7 100644
 --- a/src/dmd/astbase.d
 +++ b/src/dmd/astbase.d
 @@ -6307,7 +6307,7 @@ struct ASTBase
@@ -175,10 +174,10 @@ index 90cfd91e6..5e9a2ced1 100644
  #else
  #include        "mem.h"
 diff --git a/src/dmd/backend/cdef.d b/src/dmd/backend/cdef.d
-index 9bca51714..ff8ee4196 100644
+index 6de91c3cd..35b911a66 100644
 --- a/src/dmd/backend/cdef.d
 +++ b/src/dmd/backend/cdef.d
-@@ -501,6 +501,7 @@ enum
+@@ -519,6 +519,7 @@ enum
      EX_OPENBSD      = 0x400000,
      EX_OPENBSD64    = 0x800000,
      EX_DRAGONFLYBSD64 = 0x1000000,
@@ -186,7 +185,7 @@ index 9bca51714..ff8ee4196 100644
  }
  
  
-@@ -509,7 +510,8 @@ enum exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
+@@ -527,7 +528,8 @@ enum exefmt_t EX_flat = EX_OS2 | EX_WIN32 | EX_LINUX | EX_WIN64 | EX_LINUX64 |
                           EX_OSX | EX_OSX64 | EX_FREEBSD | EX_FREEBSD64 |
                           EX_OPENBSD | EX_OPENBSD64 |
                           EX_DRAGONFLYBSD64 |
@@ -291,7 +290,7 @@ index 4bc997b68..b3c5482af 100644
  // All DOS executable types
  const exefmt_t EX_dos =  EX_DOSX | EX_ZPM | EX_RATIONAL | EX_PHARLAP |
 diff --git a/src/dmd/backend/cgcod.c b/src/dmd/backend/cgcod.c
-index 41bb1f0b7..5608601e0 100644
+index 8d994f905..da4d579a3 100644
 --- a/src/dmd/backend/cgcod.c
 +++ b/src/dmd/backend/cgcod.c
 @@ -706,7 +706,7 @@ Lagain:
@@ -303,7 +302,7 @@ index 41bb1f0b7..5608601e0 100644
  //      usednteh |= NTEHpassthru;
  
      /* Compute BP offsets for variables on stack.
-@@ -2544,7 +2544,7 @@ reload:                                 /* reload result from memory    */
+@@ -2551,7 +2551,7 @@ reload:                                 /* reload result from memory    */
          case OPrelconst:
              cdrelconst(cdb,e,pretregs);
              break;
@@ -313,10 +312,10 @@ index 41bb1f0b7..5608601e0 100644
              cdgot(cdb,e,pretregs);
              break;
 diff --git a/src/dmd/backend/cgelem.c b/src/dmd/backend/cgelem.c
-index d94613ada..85ee112aa 100644
+index 25bd0309f..db9b03e65 100644
 --- a/src/dmd/backend/cgelem.c
 +++ b/src/dmd/backend/cgelem.c
-@@ -4968,7 +4968,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
+@@ -4974,7 +4974,7 @@ STATIC elem * elvalist(elem *e, goal_t goal)
  
  #endif
  
@@ -326,7 +325,7 @@ index d94613ada..85ee112aa 100644
      assert(I64); // va_start is not an intrinsic on 32-bit
      // (OPva_start &va)
 diff --git a/src/dmd/backend/cod1.c b/src/dmd/backend/cod1.c
-index a7b28a266..30c9563ea 100644
+index 2757d5b02..0824b43f5 100644
 --- a/src/dmd/backend/cod1.c
 +++ b/src/dmd/backend/cod1.c
 @@ -1285,7 +1285,7 @@ void getlvalue(CodeBuilder& cdb,code *pcs,elem *e,regm_t keepmsk)
@@ -420,7 +419,7 @@ index a7b28a266..30c9563ea 100644
          {
              // Note: not for OSX
              /* Pass EBX on the stack instead, this is because EBX is used
-@@ -3410,7 +3411,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -3416,7 +3417,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
                  fl = el_fl(e1);
              if (tym1 == TYifunc)
                  cdbe.gen1(0x9C);                             // PUSHF
@@ -429,7 +428,7 @@ index a7b28a266..30c9563ea 100644
              assert(!farfunc);
              if (s != tls_get_addr_sym)
              {
-@@ -3449,7 +3450,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
+@@ -3455,7 +3456,7 @@ static void funccall(CodeBuilder& cdb,elem *e,unsigned numpara,unsigned numalign
          tym_t e11ty = tybasic(e11->Ety);
          assert(!I16 || (e11ty == (farfunc ? TYfptr : TYnptr)));
          load_localgot(cdb);
@@ -439,10 +438,10 @@ index a7b28a266..30c9563ea 100644
              keepmsk |= mBX;
  #endif
 diff --git a/src/dmd/backend/cod2.c b/src/dmd/backend/cod2.c
-index f544510bd..0d3290015 100644
+index 88c89fc55..ae9d463db 100644
 --- a/src/dmd/backend/cod2.c
 +++ b/src/dmd/backend/cod2.c
-@@ -909,7 +909,7 @@ void cdmul(CodeBuilder& cdb,elem *e,regm_t *pretregs)
+@@ -912,7 +912,7 @@ void cdmul(CodeBuilder& cdb,elem *e,regm_t *pretregs)
              orthxmm(cdb,e,pretregs);
              return;
          }
@@ -451,7 +450,7 @@ index f544510bd..0d3290015 100644
          orth87(cdb,e,pretregs);
  #else
          opdouble(cdb,e,pretregs,(oper == OPmul) ? CLIBdmul : CLIBddiv);
-@@ -4145,7 +4145,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
+@@ -4165,7 +4165,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
          goto L4;
  
      case FLtlsdata:
@@ -460,7 +459,7 @@ index f544510bd..0d3290015 100644
      {
        L5:
          if (config.flags3 & CFG3pic)
-@@ -4271,7 +4271,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
+@@ -4291,7 +4291,7 @@ void getoffset(CodeBuilder& cdb,elem *e,unsigned reg)
          goto L4;
  
      case FLextern:
@@ -470,7 +469,7 @@ index f544510bd..0d3290015 100644
              goto L5;
  #endif
 diff --git a/src/dmd/backend/cod3.c b/src/dmd/backend/cod3.c
-index 0e3dba4e8..b0e9411c8 100644
+index 6d1718673..fd60e1bb0 100644
 --- a/src/dmd/backend/cod3.c
 +++ b/src/dmd/backend/cod3.c
 @@ -631,7 +631,7 @@ regm_t regmask(tym_t tym, tym_t tyf)
@@ -761,10 +760,10 @@ index 77c76050b..e52e191c1 100644
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
 diff --git a/src/dmd/backend/global.d b/src/dmd/backend/global.d
-index 0b8ed4423..a858de68d 100644
+index 556dcd51d..9460d1b08 100644
 --- a/src/dmd/backend/global.d
 +++ b/src/dmd/backend/global.d
-@@ -499,7 +499,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
+@@ -526,7 +526,7 @@ void dwarf_CFA_set_reg_offset(int reg, int offset);
  void dwarf_CFA_offset(int reg, int offset);
  void dwarf_CFA_args_size(size_t sz);
  
@@ -814,7 +813,7 @@ index a6e499918..17b8b8373 100644
  #else
              if (!(config.flags4 & CFG4oldstdmangle) &&
 diff --git a/src/dmd/backend/nteh.c b/src/dmd/backend/nteh.c
-index f0dfb8e3d..52103f359 100644
+index b0fe22a32..47cd18995 100644
 --- a/src/dmd/backend/nteh.c
 +++ b/src/dmd/backend/nteh.c
 @@ -313,7 +313,7 @@ void nteh_prolog(CodeBuilder& cdb)
@@ -1066,7 +1065,7 @@ index ed4b85983..3313ab20b 100644
      TYnpfunc,
      TYnpfunc,
 diff --git a/src/dmd/cli.d b/src/dmd/cli.d
-index 400d9773a..22b227c8b 100644
+index 73bbd14ec..8eb3f63f7 100644
 --- a/src/dmd/cli.d
 +++ b/src/dmd/cli.d
 @@ -26,6 +26,7 @@ enum TargetOS
@@ -1088,17 +1087,8 @@ index 400d9773a..22b227c8b 100644
  else
  {
      private enum targetOS = TargetOS.all;
-@@ -266,7 +271,7 @@ dmd -cov -unittest myprog.d
-         ),
-         Option("fPIC",
-             "generate position independent code",
--            TargetOS.linux
-+            TargetOS.linux | TargetOS.powerNex
-         ),
-         Option("g",
-             "add symbolic debug info",
 diff --git a/src/dmd/cond.d b/src/dmd/cond.d
-index 876253df0..28af167e8 100644
+index 581f0062f..5f619bd08 100644
 --- a/src/dmd/cond.d
 +++ b/src/dmd/cond.d
 @@ -581,6 +581,7 @@ extern (C++) final class VersionCondition : DVCondition
@@ -1124,7 +1114,7 @@ index 61265fb24..723cc57ab 100644
          exe = params.pic == 0;
      }
 diff --git a/src/dmd/e2ir.d b/src/dmd/e2ir.d
-index 8a4e540ce..57db54208 100644
+index 380d6188d..9e24cde62 100644
 --- a/src/dmd/e2ir.d
 +++ b/src/dmd/e2ir.d
 @@ -289,7 +289,8 @@ private elem *callfunc(const ref Loc loc,
@@ -1138,7 +1128,7 @@ index 8a4e540ce..57db54208 100644
                  // ehidden goes last on Linux/OSX C++
          }
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 357513461..c17032dda 100644
+index 23e60e933..afc7d0dfe 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -33,6 +33,7 @@ enum TARGET : bool
@@ -1194,7 +1184,7 @@ index 357513461..c17032dda 100644
              // Allow 'script' D source files to have no extension.
              run_noext = true;
 diff --git a/src/dmd/globals.h b/src/dmd/globals.h
-index 6b533bdee..d5d965181 100644
+index 6f3677636..dec516857 100644
 --- a/src/dmd/globals.h
 +++ b/src/dmd/globals.h
 @@ -85,6 +85,7 @@ struct Param
@@ -1206,28 +1196,10 @@ index 6b533bdee..d5d965181 100644
      bool isWindows;     // generate code for Windows
      bool isFreeBSD;     // generate code for FreeBSD
 diff --git a/src/dmd/glue.d b/src/dmd/glue.d
-index b3a478afa..694088246 100644
+index 39f7292ba..0cfeba14a 100644
 --- a/src/dmd/glue.d
 +++ b/src/dmd/glue.d
-@@ -892,7 +892,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
-         if (fd.isMain() && onlyOneMain(fd.loc))
-         {
-             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
--                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
-+                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
-             {
-                 objmod.external_def("_main");
-             }
-@@ -912,7 +912,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
-         else if (fd.isRtInit())
-         {
-             if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
--                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris ||
-+                global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex ||
-                 global.params.mscoff)
-             {
-                 objmod.ehsections();   // initialize exception handling sections
-@@ -1104,7 +1104,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
+@@ -1009,7 +1009,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
          pi++;
      }
  
@@ -1236,15 +1208,33 @@ index b3a478afa..694088246 100644
           fd.linkage != LINK.d && shidden && sthis)
      {
          /* swap shidden and sthis
-@@ -1339,7 +1339,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
-         }
+@@ -1241,7 +1241,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
      }
  
--    if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
-+    if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
+     if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
+-        global.params.isDragonFlyBSD || global.params.isSolaris)
++        global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
      {
          // A hack to get a pointer to this function put in the .dtors segment
          if (fd.ident && memcmp(fd.ident.toChars(), "_STD".ptr, 4) == 0)
+@@ -1277,7 +1277,7 @@ private void specialFunctions(Obj objmod, FuncDeclaration fd)
+     if (fd.isMain() && onlyOneMain(fd.loc))
+     {
+         if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
+-            global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris)
++            global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex)
+         {
+             objmod.external_def("_main");
+         }
+@@ -1297,7 +1297,7 @@ private void specialFunctions(Obj objmod, FuncDeclaration fd)
+     else if (fd.isRtInit())
+     {
+         if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD ||
+-            global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris ||
++            global.params.isOpenBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex ||
+             global.params.mscoff)
+         {
+             objmod.ehsections();   // initialize exception handling sections
 diff --git a/src/dmd/lib.d b/src/dmd/lib.d
 index 2f60681a1..a87a80138 100644
 --- a/src/dmd/lib.d
@@ -1268,10 +1258,10 @@ index 2f60681a1..a87a80138 100644
              return LibElf_factory();
          }
 diff --git a/src/dmd/mars.d b/src/dmd/mars.d
-index 674f26dbb..f49d6dc4f 100644
+index 7073d0655..9aace8751 100644
 --- a/src/dmd/mars.d
 +++ b/src/dmd/mars.d
-@@ -326,6 +326,10 @@ private int tryMain(size_t argc, const(char)** argv)
+@@ -333,6 +333,10 @@ private int tryMain(size_t argc, const(char)** argv)
              browse("http://dlang.org/dmd-dragonflybsd.html");
          }
          */
@@ -1282,7 +1272,7 @@ index 674f26dbb..f49d6dc4f 100644
          return EXIT_SUCCESS;
      }
  
-@@ -372,7 +376,7 @@ private int tryMain(size_t argc, const(char)** argv)
+@@ -379,7 +383,7 @@ private int tryMain(size_t argc, const(char)** argv)
      {
          global.params.pic = 1;
      }
@@ -1291,7 +1281,7 @@ index 674f26dbb..f49d6dc4f 100644
      {
          if (global.params.lib && global.params.dll)
              error(Loc.initial, "cannot mix -lib and -shared");
-@@ -582,7 +586,7 @@ private int tryMain(size_t argc, const(char)** argv)
+@@ -591,7 +595,7 @@ private int tryMain(size_t argc, const(char)** argv)
                  libmodules.push(files[i]);
                  continue;
              }
@@ -1300,7 +1290,7 @@ index 674f26dbb..f49d6dc4f 100644
              {
                  if (FileName.equals(ext, global.dll_ext))
                  {
-@@ -1248,7 +1252,7 @@ private void setDefaultLibrary()
+@@ -1262,7 +1266,7 @@ private void setDefaultLibrary()
              else
                  global.params.defaultlibname = "phobos";
          }
@@ -1309,7 +1299,7 @@ index 674f26dbb..f49d6dc4f 100644
          {
              global.params.defaultlibname = "libphobos2.a";
          }
-@@ -1329,6 +1333,13 @@ void addDefaultVersionIdentifiers()
+@@ -1343,6 +1347,13 @@ void addDefaultVersionIdentifiers()
          VersionCondition.addPredefinedGlobalIdent("ELFv1");
          global.params.isSolaris = true;
      }
@@ -1323,7 +1313,7 @@ index 674f26dbb..f49d6dc4f 100644
      else
      {
          static assert(0, "fix this");
-@@ -1592,7 +1603,7 @@ private bool parseCommandLine(const ref Strings arguments, const size_t argc, re
+@@ -1606,7 +1617,7 @@ private bool parseCommandLine(const ref Strings arguments, const size_t argc, re
                  params.dll = true;
              else if (arg == "-fPIC")
              {
@@ -1366,10 +1356,10 @@ index f20433cca..b81c3b948 100644
  #if __DMC__
  #pragma once
 diff --git a/src/dmd/target.d b/src/dmd/target.d
-index 5d4a15e29..621120612 100644
+index db91096aa..6ab48a800 100644
 --- a/src/dmd/target.d
 +++ b/src/dmd/target.d
-@@ -113,7 +113,7 @@ struct Target
+@@ -128,7 +128,7 @@ struct Target
              ptrsize = 8;
              classinfosize = 0x98; // 152
          }
@@ -1378,7 +1368,7 @@ index 5d4a15e29..621120612 100644
          {
              realsize = 12;
              realpad = 2;
-@@ -146,7 +146,7 @@ struct Target
+@@ -161,7 +161,7 @@ struct Target
              assert(0);
          if (global.params.is64bit)
          {
@@ -1387,7 +1377,7 @@ index 5d4a15e29..621120612 100644
              {
                  realsize = 16;
                  realpad = 6;
-@@ -163,7 +163,7 @@ struct Target
+@@ -178,7 +178,7 @@ struct Target
              c_long_doublesize = 8;
  
          cppExceptions = global.params.isLinux || global.params.isFreeBSD ||
@@ -1396,7 +1386,7 @@ index 5d4a15e29..621120612 100644
  
          int64Mangle  = global.params.isOSX ? 'x' : 'l';
          uint64Mangle = global.params.isOSX ? 'y' : 'm';
-@@ -187,7 +187,7 @@ struct Target
+@@ -202,7 +202,7 @@ struct Target
              return Target.realalignsize;
          case Tcomplex32:
              if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD ||
@@ -1405,7 +1395,7 @@ index 5d4a15e29..621120612 100644
                  return 4;
              break;
          case Tint64:
-@@ -196,7 +196,7 @@ struct Target
+@@ -211,7 +211,7 @@ struct Target
          case Timaginary64:
          case Tcomplex64:
              if (global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isOpenBSD ||
@@ -1414,7 +1404,7 @@ index 5d4a15e29..621120612 100644
                  return global.params.is64bit ? 8 : 4;
              break;
          default:
-@@ -267,6 +267,11 @@ struct Target
+@@ -282,6 +282,11 @@ struct Target
              // sizeof(pthread_mutex_t) for Solaris.
              return 24;
          }
@@ -1426,7 +1416,7 @@ index 5d4a15e29..621120612 100644
          assert(0);
      }
  
-@@ -284,7 +289,7 @@ struct Target
+@@ -299,7 +304,7 @@ struct Target
              return Type.tchar.pointerTo();
          }
          else if (global.params.isLinux || global.params.isFreeBSD || global.params.isOpenBSD || global.params.isDragonFlyBSD ||
@@ -1435,7 +1425,7 @@ index 5d4a15e29..621120612 100644
          {
              if (global.params.is64bit)
              {
-@@ -488,7 +493,7 @@ struct Target
+@@ -499,7 +504,7 @@ struct Target
       */
      extern (C++) static const(char)* toCppMangle(Dsymbol s)
      {
@@ -1444,7 +1434,7 @@ index 5d4a15e29..621120612 100644
              return toCppMangleItanium(s);
          else static if (TARGET.Windows)
              return toCppMangleMSVC(s);
-@@ -505,7 +510,7 @@ struct Target
+@@ -516,7 +521,7 @@ struct Target
       */
      extern (C++) static const(char)* cppTypeInfoMangle(ClassDeclaration cd)
      {
@@ -1453,6 +1443,15 @@ index 5d4a15e29..621120612 100644
              return cppTypeInfoMangleItanium(cd);
          else static if (TARGET.Windows)
              return cppTypeInfoMangleMSVC(cd);
+@@ -721,7 +726,7 @@ struct Target
+         }
+         else if ((global.params.isLinux || global.params.isOSX ||
+                   global.params.isFreeBSD || global.params.isSolaris ||
+-                  global.params.isDragonFlyBSD) &&
++                  global.params.isDragonFlyBSD || global.params.isPowerNex) &&
+                  tf.linkage == LINK.c &&
+                  tns.iscomplex())
+         {
 diff --git a/src/dmd/tk/filespec.c b/src/dmd/tk/filespec.c
 index 12a6c1422..75b7cf505 100644
 --- a/src/dmd/tk/filespec.c
@@ -1542,37 +1541,6 @@ index 3b29bcec7..ecfdb5538 100644
                  *(long *) &(mem_alloclist.data[0]) = AFTERVAL;
  #endif
  #endif
-diff --git a/src/dmd/toir.d b/src/dmd/toir.d
-index 97b87785e..77bdd6582 100644
---- a/src/dmd/toir.d
-+++ b/src/dmd/toir.d
-@@ -1011,7 +1011,7 @@ Lagain:
-         if (tns.ty != Tstruct)
-         {
- L2:
--            if (global.params.isLinux && tf.linkage != LINK.d && !global.params.is64bit)
-+            if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINK.d && !global.params.is64bit)
-             {
-                                                 // 32 bit C/C++ structs always on stack
-             }
-@@ -1038,7 +1038,7 @@ L2:
-     if (tns.ty == Tstruct)
-     {
-         StructDeclaration sd = (cast(TypeStruct)tns).sym;
--        if (global.params.isLinux && tf.linkage != LINK.d && !global.params.is64bit)
-+        if ((global.params.isLinux || global.params.isPowerNex) && tf.linkage != LINK.d && !global.params.is64bit)
-         {
-             if (sd.ident == Id.__c_long || sd.ident == Id.__c_ulong)
-                 return RET.regs;
-@@ -1087,7 +1087,7 @@ L2:
-         //printf("  3 RET.stack\n");
-         return RET.stack;
-     }
--    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris) &&
-+    else if ((global.params.isLinux || global.params.isOSX || global.params.isFreeBSD || global.params.isDragonFlyBSD || global.params.isSolaris || global.params.isPowerNex) &&
-              tf.linkage == LINK.c &&
-              tns.iscomplex())
-     {
 diff --git a/test/fail_compilation/reserved_version.d b/test/fail_compilation/reserved_version.d
 index 89bde619d..096ac3fae 100644
 --- a/test/fail_compilation/reserved_version.d
@@ -1599,5 +1567,5 @@ index 89bde619d..096ac3fae 100644
  debug = MSP430;
 +debug = PowerNex;
 -- 
-2.16.2
+2.17.1
 
