@@ -1,6 +1,6 @@
-From 9a27ad8273b2a7dbdb1e1d37c5553c43e7719334 Mon Sep 17 00:00:00 2001
+From 4e7069ba4c9b92bfc325b6a26a7f5d2a63e1f117 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
-Date: Thu, 28 Sep 2017 23:08:40 +0200
+Date: Sun, 2 Dec 2018 00:11:34 +0100
 Subject: [PATCH 4/4] Added PowerNex reminders to the version output
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
@@ -9,7 +9,7 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 16611e7bb..9a429908a 100644
+index 3b0ed0885..e806b7bb8 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -254,7 +254,7 @@ struct Global
@@ -21,15 +21,15 @@ index 16611e7bb..9a429908a 100644
      const(char)* main_d = "__main.d";   // dummy filename for dummy main()
      Array!(const(char)*)* path;         // Array of char*'s which form the import lookup path
      Array!(const(char)*)* filePath;     // Array of char*'s which form the file import lookup path
-@@ -361,7 +361,7 @@ struct Global
+@@ -363,7 +363,7 @@ struct Global
          {
              static assert(0, "fix this");
          }
 -        _version = (import("VERSION") ~ '\0').ptr;
 +        _version = (import("VERSION") ~ "-PowerNex\0").ptr;
-         compiler.vendor = "Digital Mars D";
+         vendor = "Digital Mars D";
      }
  
 -- 
-2.17.1
+2.19.2
 
