@@ -1,26 +1,27 @@
-From db2ff24f3db2bf8b14b149dc13fdbc8826f51194 Mon Sep 17 00:00:00 2001
+From 76a3e373c834933e40256fd651ee03f7fcb0dcfa Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
-Date: Sun, 2 Dec 2018 00:11:34 +0100
+Date: Fri, 17 Jan 2020 01:49:05 +0100
 Subject: [PATCH 3/4] Force PowerNex to be the target
 
 Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
- src/dmd/globals.d | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/dmd/globals.d | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 2b2f297ca..3b0ed0885 100644
+index d8e5c80a7..fda5c9a75 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -20,7 +20,7 @@ import dmd.identifier;
+@@ -20,7 +20,8 @@ import dmd.identifier;
  
  template xversion(string s)
  {
 -    enum xversion = mixin(`{ version (` ~ s ~ `) return true; else return false; }`)();
-+    enum xversion = (s == "PowerNex"); //mixin(`{ version (` ~ s ~ `) return true; else return false; }`)();
++    // enum xversion = s == mixin(`{ version (` ~ s ~ `) return true; else return false; }`)();
++    enum xversion = s == "PowerNex";
  }
  
  enum TARGET : bool
 -- 
-2.19.2
+2.24.1
 

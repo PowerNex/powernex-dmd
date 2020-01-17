@@ -1,7 +1,7 @@
 pipeline {
 	agent { dockerfile true }
 	environment {
-		DMD_VERSION = 'v2.080.1'
+		DMD_VERSION = 'v2.090.0'
 	}
 	stages {
 		stage('fetch') {
@@ -48,7 +48,7 @@ pipeline {
 					sh '''
 					pushd dmd
 					make -f powernex.mak
-					mv powernex-dmd ../
+					mv generated/powernex/release/64/dmd ../powernex-dmd
 					popd
 					'''
         }
