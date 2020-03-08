@@ -2,8 +2,7 @@
 
 [[ $# -ne 1 ]] && (echo "Usage: $0 <branch/tag>"; exit 1)
 
-set -x
-set -euo pipefail
+set -xeuo pipefail
 
 DMD_VERSION=$1
 
