@@ -1,8 +1,5 @@
 pipeline {
 	agent { dockerfile true }
-	environment {
-		DMD_VERSION = 'v2.090.0'
-	}
 	stages {
 		stage('fetch') {
 			steps {
@@ -12,6 +9,7 @@ pipeline {
 				}
 				ansiColor('xterm') {
 					sh '''
+					DMD_VERSION=$(cat DMD_VERSION)
 
 					if [ -e dmd ]; then
 						pushd dmd
@@ -27,10 +25,7 @@ pipeline {
 					git config user.name "WildBot"
 					git config user.email "xwildn00bx+wildbot@gmail.com"
 
-					git am <../0001-Added-PowerNex-to-the-backend.patch
-					git am <../0002-Added-makefiles-for-building-a-PowerNex-CC.patch
-					git am <../0003-Force-PowerNex-to-be-the-target.patch
-					git am <../0004-Added-PowerNex-reminders-to-the-version-output.patch
+					git am <../*.patch
 
 					popd
 					'''
@@ -51,7 +46,7 @@ pipeline {
 					mv generated/powernex/release/64/dmd ../powernex-dmd
 					popd
 					'''
-        }
+				}
 			}
 		}
 
@@ -73,18 +68,18 @@ pipeline {
 		}
 	}
 
-  post {
-    success {
+	post {
+		success {
 			script {
 				if (env.JOB_NAME.endsWith("_pull-requests"))
 					setGitHubPullRequestStatus state: 'SUCCESS', context: "${env.JOB_NAME}", message: "powernex-dmd building successed"
 			}
-    }
+		}
 		failure {
 			script {
 				if (env.JOB_NAME.endsWith("_pull-requests"))
 					setGitHubPullRequestStatus state: 'FAILURE', context: "${env.JOB_NAME}", message: "powernex-dmd building failed"
 			}
 		}
-  }
+	}
 }
