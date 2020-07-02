@@ -1,4 +1,4 @@
-From a3481c3b3401792fdcf016e551d88fdddf710931 Mon Sep 17 00:00:00 2001
+From 3781538b16b077a7f5d13f3df49990b6305aee5b Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:47:59 +0100
 Subject: [PATCH 2/4] Added makefiles for building PowerNex target
@@ -7,8 +7,8 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
 ---
  powernex.mak     |  13 +++
  src/build.d      |   4 +-
- src/powernex.mak | 226 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 242 insertions(+), 1 deletion(-)
+ src/powernex.mak | 223 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 239 insertions(+), 1 deletion(-)
  create mode 100644 powernex.mak
  create mode 100644 src/powernex.mak
 
@@ -32,10 +32,10 @@ index 000000000..55517111d
 +
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 diff --git a/src/build.d b/src/build.d
-index 93fda765b..08c3da6ea 100755
+index 00ae7cdb5..b89d71d31 100755
 --- a/src/build.d
 +++ b/src/build.d
-@@ -1179,7 +1179,7 @@ bool download(string to, string from, uint tries = 3)
+@@ -1252,7 +1252,7 @@ bool download(string to, string from, uint tries = 3)
  /**
  Detects the host OS.
  
@@ -44,7 +44,7 @@ index 93fda765b..08c3da6ea 100755
  */
  string detectOS()
  {
-@@ -1199,6 +1199,8 @@ string detectOS()
+@@ -1272,6 +1272,8 @@ string detectOS()
          return "dragonflybsd";
      else version(Solaris)
          return "solaris";
@@ -55,10 +55,10 @@ index 93fda765b..08c3da6ea 100755
  }
 diff --git a/src/powernex.mak b/src/powernex.mak
 new file mode 100644
-index 000000000..a5818516e
+index 000000000..50df6fdaf
 --- /dev/null
 +++ b/src/powernex.mak
-@@ -0,0 +1,226 @@
+@@ -0,0 +1,223 @@
 +################################################################################
 +# Important variables:
 +# --------------------
@@ -125,7 +125,7 @@ index 000000000..a5818516e
 +    export MACOSX_DEPLOYMENT_TARGET=10.9
 +endif
 +
-+HOST_CXX=c++
++HOST_CXX?=c++
 +# compatibility with old behavior
 +ifneq ($(HOST_CC),)
 +  $(warning ===== WARNING: Please use HOST_CXX=$(HOST_CC) instead of HOST_CC=$(HOST_CC). =====)
@@ -168,11 +168,12 @@ index 000000000..a5818516e
 +all: dmd
 +.PHONY: all
 +
-+dmd: $G/dmd $G/dmd.conf
++dmd: $(GENERATED)/build
++	$(RUN_BUILD) $@
 +.PHONY: dmd
 +
 +$(GENERATED)/build: build.d $(HOST_DMD_PATH)
-+	$(HOST_DMD_RUN) -of$@ build.d
++	$(HOST_DMD_RUN) -of$@ -g build.d
 +
 +auto-tester-build: $(GENERATED)/build
 +	$(RUN_BUILD) $@
@@ -220,12 +221,8 @@ index 000000000..a5818516e
 +
 +######################################################
 +
-+install: all $(DMD_MAN_PAGE)
-+	$(eval bin_dir=$(if $(filter $(OS),osx), bin, bin$(MODEL)))
-+	mkdir -p $(INSTALL_DIR)/$(OS)/$(bin_dir)
-+	cp $G/dmd $(INSTALL_DIR)/$(OS)/$(bin_dir)/dmd
-+	cp ../ini/$(OS)/$(bin_dir)/dmd.conf $(INSTALL_DIR)/$(OS)/$(bin_dir)/dmd.conf
-+	cp $D/boostlicense.txt $(INSTALL_DIR)/dmd-boostlicense.txt
++install: $(GENERATED)/build $(DMD_MAN_PAGE)
++	$(RUN_BUILD) $@
 +
 +######################################################
 +
@@ -286,5 +283,5 @@ index 000000000..a5818516e
 +
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 -- 
-2.25.1
+2.27.0
 
