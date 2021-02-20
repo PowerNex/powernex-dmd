@@ -1,4 +1,4 @@
-From 80a605d37782b994061fe3b7ab98ff9a648e21f2 Mon Sep 17 00:00:00 2001
+From bd5666e849f3d0daf46770c90e2929cf2dc63e8b Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:46:53 +0100
 Subject: [PATCH 1/4] Added PowerNex as target
@@ -179,10 +179,10 @@ index 4fa813101..df21de48b 100644
          case OPgot:
              cdgot(cdb,e,pretregs);
 diff --git a/src/dmd/backend/cgelem.d b/src/dmd/backend/cgelem.d
-index 43e124997..9e0e8f7df 100644
+index daf9c3f6d..3c27ed401 100644
 --- a/src/dmd/backend/cgelem.d
 +++ b/src/dmd/backend/cgelem.d
-@@ -5130,7 +5130,7 @@ static if (TARGET_WINDOS)
+@@ -5137,7 +5137,7 @@ static if (TARGET_WINDOS)
  
  }
  

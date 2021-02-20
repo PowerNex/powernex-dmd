@@ -1,4 +1,4 @@
-From a40265fe8007001244c5f6fe03d47d5d19b04e14 Mon Sep 17 00:00:00 2001
+From 736b4af8211bb65af5cf2fa0628613f86980f524 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output

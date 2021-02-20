@@ -1,4 +1,4 @@
-From e0ed8a54850c4e14f719ac92d0796736ad9ccb67 Mon Sep 17 00:00:00 2001
+From 6a8584d4e8cf0a97dddf16f69cc564e20364b5f2 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:47:59 +0100
 Subject: [PATCH 2/4] Added makefiles for building PowerNex target
