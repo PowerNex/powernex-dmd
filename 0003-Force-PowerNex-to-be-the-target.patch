@@ -1,4 +1,4 @@
-From cb7d29ecccfe500480241614ce07b0b099eaf375 Mon Sep 17 00:00:00 2001
+From 7bf4d78555e334bbd4f9697675cc19fec7a6984f Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:49:05 +0100
 Subject: [PATCH 3/4] Force PowerNex to be the target
@@ -9,10 +9,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index b340de06b..3bf70a134 100644
+index fa7b9d452..d8f0916ec 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -19,7 +19,8 @@ import dmd.identifier;
+@@ -40,7 +40,8 @@ enum TargetOS : ubyte
  
  template xversion(string s)
  {
