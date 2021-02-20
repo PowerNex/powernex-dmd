@@ -1,4 +1,4 @@
-From 736b4af8211bb65af5cf2fa0628613f86980f524 Mon Sep 17 00:00:00 2001
+From 12a1183390f815befc2e60f2ddee040d946a7d8f Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output
@@ -9,10 +9,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 8918fbd1c..fb22e86c4 100644
+index 3bf70a134..fa6a298c5 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -312,7 +312,7 @@ extern (C++) struct Global
+@@ -323,12 +323,12 @@ extern (C++) struct Global
      bool run_noext;                     // allow -run sources without extensions.
  
      string copyright = "Copyright (C) 1999-2020 by The D Language Foundation, All Rights Reserved";
@@ -21,15 +21,12 @@ index 8918fbd1c..fb22e86c4 100644
  
      Array!(const(char)*)* path;         // Array of char*'s which form the import lookup path
      Array!(const(char)*)* filePath;     // Array of char*'s which form the file import lookup path
-@@ -372,7 +372,7 @@ extern (C++) struct Global
  
-     extern (C++) void _init()
-     {
--        _version = import("VERSION") ~ '\0';
-+        _version = import("VERSION") ~ "-PowerNex\0";
+-    private enum string _version = import("VERSION");
++    private enum string _version = import("VERSION") ~ "-PowerNex";
+     private enum uint _versionNumber = parseVersionNumber(_version);
  
-         version (MARS)
-         {
+     const(char)[] vendor;    // Compiler backend name
 -- 
 2.30.1
 
