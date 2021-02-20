@@ -1,4 +1,4 @@
-From 6ba1f213076055fcc5cc72033b2cece8ecc403a4 Mon Sep 17 00:00:00 2001
+From 1d27db1395fd2e88b7dc8d9a614f8d4385615c3f Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output
@@ -31,5 +31,5 @@ index 6ce7206c2..555a6b440 100644
          version (MARS)
          {
 -- 
-2.27.0
+2.30.1
 

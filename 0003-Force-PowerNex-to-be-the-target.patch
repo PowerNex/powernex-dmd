@@ -1,4 +1,4 @@
-From f80c48df1e353e11b000cb7a08dcfa8066b58c23 Mon Sep 17 00:00:00 2001
+From df057007fc470881f9f9d62156a9cee9ba6ad766 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:49:05 +0100
 Subject: [PATCH 3/4] Force PowerNex to be the target
@@ -23,5 +23,5 @@ index fef93b6a9..6ce7206c2 100644
  
  enum TARGET : bool
 -- 
-2.27.0
+2.30.1
 

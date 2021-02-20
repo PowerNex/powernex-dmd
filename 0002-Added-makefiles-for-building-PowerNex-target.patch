@@ -1,4 +1,4 @@
-From 3781538b16b077a7f5d13f3df49990b6305aee5b Mon Sep 17 00:00:00 2001
+From 76d52c647d7f9bcab7966ebf63ca3ce13298a7ee Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:47:59 +0100
 Subject: [PATCH 2/4] Added makefiles for building PowerNex target
@@ -283,5 +283,5 @@ index 000000000..50df6fdaf
 +
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 -- 
-2.27.0
+2.30.1
 

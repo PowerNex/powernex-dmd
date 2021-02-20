@@ -1,4 +1,4 @@
-From ec15a281d10c83e3b55e1c9285ddab903b0fff41 Mon Sep 17 00:00:00 2001
+From 27f523b3c4a5781ec2e287bdc7766c20a7e36435 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:46:53 +0100
 Subject: [PATCH 1/4] Added PowerNex as target
@@ -974,5 +974,5 @@ index da0ff6c7f..038256e16 100644
          else static if (TARGET.Windows)
              return cppTypeInfoMangleMSVC(cd);
 -- 
-2.27.0
+2.30.1
 
