@@ -1,4 +1,4 @@
-From df057007fc470881f9f9d62156a9cee9ba6ad766 Mon Sep 17 00:00:00 2001
+From 30683857f3ea7916571a22a500c8a381c5b8a904 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:49:05 +0100
 Subject: [PATCH 3/4] Force PowerNex to be the target
@@ -9,7 +9,7 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index fef93b6a9..6ce7206c2 100644
+index 7a51cb807..8918fbd1c 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -19,7 +19,8 @@ import dmd.identifier;

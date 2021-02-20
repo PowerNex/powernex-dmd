@@ -1,4 +1,4 @@
-From 1d27db1395fd2e88b7dc8d9a614f8d4385615c3f Mon Sep 17 00:00:00 2001
+From a40265fe8007001244c5f6fe03d47d5d19b04e14 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output
@@ -9,10 +9,10 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 6ce7206c2..555a6b440 100644
+index 8918fbd1c..fb22e86c4 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -311,7 +311,7 @@ extern (C++) struct Global
+@@ -312,7 +312,7 @@ extern (C++) struct Global
      bool run_noext;                     // allow -run sources without extensions.
  
      string copyright = "Copyright (C) 1999-2020 by The D Language Foundation, All Rights Reserved";
@@ -21,7 +21,7 @@ index 6ce7206c2..555a6b440 100644
  
      Array!(const(char)*)* path;         // Array of char*'s which form the import lookup path
      Array!(const(char)*)* filePath;     // Array of char*'s which form the file import lookup path
-@@ -371,7 +371,7 @@ extern (C++) struct Global
+@@ -372,7 +372,7 @@ extern (C++) struct Global
  
      extern (C++) void _init()
      {
