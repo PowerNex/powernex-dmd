@@ -1,4 +1,4 @@
-From 034d105d355b8d960453ffe0fc94de9fd8fd0e8b Mon Sep 17 00:00:00 2001
+From cb7d29ecccfe500480241614ce07b0b099eaf375 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:49:05 +0100
 Subject: [PATCH 3/4] Force PowerNex to be the target
