@@ -1,4 +1,4 @@
-From 951c6df9a106e82a777a84ed1b28a57fa9f74ef0 Mon Sep 17 00:00:00 2001
+From d4df5a28b661e1abdee41b699fabee70aa921ac2 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:46:53 +0100
 Subject: [PATCH 1/4] Added PowerNex as target
@@ -288,7 +288,7 @@ index ebb213fa2..4b3a42819 100644
              break;
  
 diff --git a/src/dmd/cli.d b/src/dmd/cli.d
-index 9a2886b80..59e4b153e 100644
+index 301cc9c5b..2e4b60970 100644
 --- a/src/dmd/cli.d
 +++ b/src/dmd/cli.d
 @@ -62,6 +62,10 @@ else version(Solaris)
@@ -303,7 +303,7 @@ index 9a2886b80..59e4b153e 100644
  {
      private enum targetOS = TargetOS.all;
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index f8e32b21e..fa7b9d452 100644
+index 3b82725f3..53bf276dd 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -30,10 +30,12 @@ enum TargetOS : ubyte
@@ -329,7 +329,7 @@ index f8e32b21e..fa7b9d452 100644
  }
  
  enum DiagnosticReporting : ubyte
-@@ -408,7 +411,7 @@ extern (C++) struct Global
+@@ -409,7 +412,7 @@ extern (C++) struct Global
              {
                  obj_ext = "obj";
              }
@@ -338,7 +338,7 @@ index f8e32b21e..fa7b9d452 100644
              {
                  obj_ext = "o";
              }
-@@ -420,7 +423,7 @@ extern (C++) struct Global
+@@ -421,7 +424,7 @@ extern (C++) struct Global
              {
                  lib_ext = "lib";
              }
@@ -347,7 +347,7 @@ index f8e32b21e..fa7b9d452 100644
              {
                  lib_ext = "a";
              }
-@@ -432,7 +435,7 @@ extern (C++) struct Global
+@@ -433,7 +436,7 @@ extern (C++) struct Global
              {
                  dll_ext = "dll";
              }
@@ -356,7 +356,7 @@ index f8e32b21e..fa7b9d452 100644
              {
                  dll_ext = "so";
              }
-@@ -448,7 +451,7 @@ extern (C++) struct Global
+@@ -449,7 +452,7 @@ extern (C++) struct Global
              {
                  run_noext = false;
              }
@@ -366,7 +366,7 @@ index f8e32b21e..fa7b9d452 100644
                  // Allow 'script' D source files to have no extension.
                  run_noext = true;
 diff --git a/src/dmd/globals.h b/src/dmd/globals.h
-index 248847317..9a6b07f92 100644
+index 6bc25f758..a8d6d1264 100644
 --- a/src/dmd/globals.h
 +++ b/src/dmd/globals.h
 @@ -32,10 +32,12 @@ enum
@@ -400,7 +400,7 @@ index 396fe9ad5..0894a5817 100644
          arrayEnd();
  
 diff --git a/src/dmd/lib.d b/src/dmd/lib.d
-index 5d54cfc98..73f4eeabd 100644
+index c0b079125..e09538775 100644
 --- a/src/dmd/lib.d
 +++ b/src/dmd/lib.d
 @@ -29,7 +29,7 @@ static if (TARGET.Windows)
@@ -422,10 +422,10 @@ index 5d54cfc98..73f4eeabd 100644
              return LibElf_factory();
          }
 diff --git a/src/dmd/mars.d b/src/dmd/mars.d
-index 093050982..7203b239a 100644
+index e4032aff8..c8e3d86a7 100644
 --- a/src/dmd/mars.d
 +++ b/src/dmd/mars.d
-@@ -1153,7 +1153,7 @@ private void setDefaultLibrary()
+@@ -1193,7 +1193,7 @@ private void setDefaultLibrary()
              else
                  global.params.defaultlibname = "phobos";
          }
@@ -434,7 +434,7 @@ index 093050982..7203b239a 100644
          {
              global.params.defaultlibname = "libphobos2.a";
          }
-@@ -1195,6 +1195,8 @@ void setTarget(ref Param params)
+@@ -1235,6 +1235,8 @@ void setTarget(ref Param params)
          params.targetOS = TargetOS.Solaris;
      else static if (TARGET.DragonFlyBSD)
          params.targetOS = TargetOS.DragonFlyBSD;
@@ -443,7 +443,7 @@ index 093050982..7203b239a 100644
      else
          static assert(0, "unknown TARGET");
  }
-@@ -1281,6 +1283,13 @@ void addDefaultVersionIdentifiers(const ref Param params)
+@@ -1321,6 +1323,13 @@ void addDefaultVersionIdentifiers(const ref Param params)
          VersionCondition.addPredefinedGlobalIdent("ELFv1");
          VersionCondition.addPredefinedGlobalIdent("CppRuntime_Sun");
      }
@@ -457,7 +457,7 @@ index 093050982..7203b239a 100644
      else
      {
          assert(0);
-@@ -1759,7 +1768,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -1799,7 +1808,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
              params.dll = true;
          else if (arg == "-fPIC")
          {
@@ -466,7 +466,7 @@ index 093050982..7203b239a 100644
              {
                  params.pic = PIC.pic;
              }
-@@ -1770,7 +1779,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -1810,7 +1819,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
          }
          else if (arg == "-fPIE")
          {
@@ -475,7 +475,7 @@ index 093050982..7203b239a 100644
              {
                  params.pic = PIC.pie;
              }
-@@ -2237,7 +2246,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -2277,7 +2286,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
          else if (startsWith(p + 1, "Xcc="))
          {
              // Linking code is guarded by version (Posix):
@@ -484,7 +484,7 @@ index 093050982..7203b239a 100644
              {
                  params.linkswitches.push(p + 5);
                  params.linkswitchIsForCC.push(true);
-@@ -2579,7 +2588,7 @@ private void reconcileCommands(ref Param params, size_t numSrcFiles)
+@@ -2619,7 +2628,7 @@ private void reconcileCommands(ref Param params, size_t numSrcFiles)
      {
          params.pic = PIC.pic;
      }
@@ -493,7 +493,7 @@ index 093050982..7203b239a 100644
      {
          if (params.lib && params.dll)
              error(Loc.initial, "cannot mix -lib and -shared");
-@@ -2762,7 +2771,7 @@ Module createModule(const(char)* file, ref Strings libmodules)
+@@ -2799,7 +2808,7 @@ Module createModule(const(char)* file, ref Strings libmodules)
          libmodules.push(file);
          return null;
      }
