@@ -1,4 +1,4 @@
-From d4df5a28b661e1abdee41b699fabee70aa921ac2 Mon Sep 17 00:00:00 2001
+From 9760e8c24ecc5df353599ea7ac415a2619c99b6d Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:46:53 +0100
 Subject: [PATCH 1/4] Added PowerNex as target
@@ -11,20 +11,21 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  src/dmd/backend/cod3.d       |  2 +-
  src/dmd/backend/code_x86.d   |  1 -
  src/dmd/backend/elfobj.d     |  3 ++-
+ src/dmd/backend/os.d         | 14 ++++++++++++++
  src/dmd/cli.d                |  4 ++++
  src/dmd/globals.d            | 15 +++++++++------
  src/dmd/globals.h            |  6 ++++--
  src/dmd/json.d               |  4 ++++
  src/dmd/lib.d                |  4 ++--
  src/dmd/mars.d               | 21 +++++++++++++++------
- src/dmd/target.d             | 18 +++++++++++-------
- 13 files changed, 96 insertions(+), 45 deletions(-)
+ src/dmd/target.d             | 14 +++++++-------
+ 14 files changed, 106 insertions(+), 45 deletions(-)
 
 diff --git a/src/dmd/backend/backconfig.d b/src/dmd/backend/backconfig.d
-index cf46a0abe..f7cc7a5d1 100644
+index 2f3b9cca9..310b342ca 100644
 --- a/src/dmd/backend/backconfig.d
 +++ b/src/dmd/backend/backconfig.d
-@@ -245,6 +245,25 @@ static if (TARGET_SOLARIS)
+@@ -263,6 +263,25 @@ static if (TARGET_SOLARIS)
      config.objfmt = OBJ_ELF;
      config.ehmethod = useExceptions ? EHmethod.EH_DM : EHmethod.EH_NONE;
  }
@@ -50,7 +51,7 @@ index cf46a0abe..f7cc7a5d1 100644
      config.flags2 |= CFG2nodeflib;      // no default library
      config.flags3 |= CFG3eseqds;
  static if (0)
-@@ -394,7 +413,7 @@ void util_set32()
+@@ -412,7 +431,7 @@ void util_set32()
      _tysize[TYnullptr] = LONGSIZE;
      _tysize[TYnptr] = LONGSIZE;
      _tysize[TYnref] = LONGSIZE;
@@ -59,7 +60,7 @@ index cf46a0abe..f7cc7a5d1 100644
  {
      _tysize[TYldouble] = 12;
      _tysize[TYildouble] = 12;
-@@ -428,7 +447,7 @@ else
+@@ -446,7 +465,7 @@ else
      _tyalignsize[TYnullptr] = LONGSIZE;
      _tyalignsize[TYnref] = LONGSIZE;
      _tyalignsize[TYnptr] = LONGSIZE;
@@ -68,7 +69,7 @@ index cf46a0abe..f7cc7a5d1 100644
  {
      _tyalignsize[TYldouble] = 4;
      _tyalignsize[TYildouble] = 4;
-@@ -485,7 +504,7 @@ void util_set64()
+@@ -503,7 +522,7 @@ void util_set64()
      _tysize[TYnullptr] = 8;
      _tysize[TYnptr] = 8;
      _tysize[TYnref] = 8;
@@ -77,7 +78,7 @@ index cf46a0abe..f7cc7a5d1 100644
  {
      _tysize[TYldouble] = 16;
      _tysize[TYildouble] = 16;
-@@ -513,7 +532,7 @@ else
+@@ -531,7 +550,7 @@ else
      _tyalignsize[TYnullptr] = 8;
      _tyalignsize[TYnptr] = 8;
      _tyalignsize[TYnref] = 8;
@@ -87,7 +88,7 @@ index cf46a0abe..f7cc7a5d1 100644
      _tyalignsize[TYldouble] = 16;
      _tyalignsize[TYildouble] = 16;
 diff --git a/src/dmd/backend/cdef.d b/src/dmd/backend/cdef.d
-index 7b8b06416..6b35a0a4c 100644
+index 51d20d305..ee2e14df3 100644
 --- a/src/dmd/backend/cdef.d
 +++ b/src/dmd/backend/cdef.d
 @@ -40,7 +40,8 @@ version (XVERSION)
@@ -162,16 +163,16 @@ index 7b8b06416..6b35a0a4c 100644
  
  // Constraints
  static assert(EX_all == (EX_segmented ^ EX_flat));
-@@ -988,4 +994,3 @@ enum
+@@ -990,4 +996,3 @@ enum
  
  int ClassInline(int c) { return c == SCinline || c == SCsinline || c == SCeinline; }
  int SymInline(Symbol* s) { return ClassInline(s.Sclass); }
 -
 diff --git a/src/dmd/backend/cod1.d b/src/dmd/backend/cod1.d
-index 319d79039..6cb5dd949 100644
+index a4ba443f5..556636107 100644
 --- a/src/dmd/backend/cod1.d
 +++ b/src/dmd/backend/cod1.d
-@@ -2095,7 +2095,8 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
+@@ -2094,7 +2094,8 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
                            EX_FREEBSD | EX_FREEBSD64 |
                            EX_OPENBSD | EX_OPENBSD64 |
                            EX_DRAGONFLYBSD64 |
@@ -181,7 +182,7 @@ index 319d79039..6cb5dd949 100644
  
      ClibInfo* cinfo = &clibinfo[clib];
      Symbol* s = clibsyms[clib];
-@@ -2122,7 +2123,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
+@@ -2121,7 +2122,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
  
              case CLIB.ldiv:
                  cinfo.retregs16 = mDX|mAX;
@@ -190,7 +191,7 @@ index 319d79039..6cb5dd949 100644
                  {
                      s = symboly("__divdi3", mAX|mBX|mCX|mDX);
                      cinfo.flags = INFpushebx;
-@@ -2150,7 +2151,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
+@@ -2149,7 +2150,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
  
              case CLIB.lmod:
                  cinfo.retregs16 = mCX|mBX;
@@ -199,7 +200,7 @@ index 319d79039..6cb5dd949 100644
                  {
                      s = symboly("__moddi3", mAX|mBX|mCX|mDX);
                      cinfo.flags = INFpushebx;
-@@ -2178,7 +2179,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
+@@ -2177,7 +2178,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
  
              case CLIB.uldiv:
                  cinfo.retregs16 = mDX|mAX;
@@ -208,7 +209,7 @@ index 319d79039..6cb5dd949 100644
                  {
                      s = symboly("__udivdi3", mAX|mBX|mCX|mDX);
                      cinfo.flags = INFpushebx;
-@@ -2206,7 +2207,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
+@@ -2205,7 +2206,7 @@ void getClibInfo(uint clib, Symbol** ps, ClibInfo** pinfo)
  
              case CLIB.ulmod:
                  cinfo.retregs16 = mCX|mBX;
@@ -217,7 +218,7 @@ index 319d79039..6cb5dd949 100644
                  {
                      s = symboly("__umoddi3", mAX|mBX|mCX|mDX);
                      cinfo.flags = INFpushebx;
-@@ -2827,7 +2828,7 @@ void callclib(ref CodeBuilder cdb, elem* e, uint clib, regm_t* pretregs, regm_t
+@@ -2826,7 +2827,7 @@ void callclib(ref CodeBuilder cdb, elem* e, uint clib, regm_t* pretregs, regm_t
          }
          if (pushebx)
          {
@@ -226,7 +227,7 @@ index 319d79039..6cb5dd949 100644
              {
                  cdb.gen1(0x50 + CX);                             // PUSH ECX
                  cdb.gen1(0x50 + BX);                             // PUSH EBX
-@@ -2848,7 +2849,7 @@ void callclib(ref CodeBuilder cdb, elem* e, uint clib, regm_t* pretregs, regm_t
+@@ -2847,7 +2848,7 @@ void callclib(ref CodeBuilder cdb, elem* e, uint clib, regm_t* pretregs, regm_t
              cdb.gen1(0x50 + DX);                                 // PUSH EDX
              cdb.gen1(0x50 + AX);                                 // PUSH EAX
          }
@@ -235,7 +236,7 @@ index 319d79039..6cb5dd949 100644
          {
              // Note: not for OSX
              /* Pass EBX on the stack instead, this is because EBX is used
-@@ -3295,7 +3296,7 @@ void cdfunc(ref CodeBuilder cdb, elem* e, regm_t* pretregs)
+@@ -3294,7 +3295,7 @@ void cdfunc(ref CodeBuilder cdb, elem* e, regm_t* pretregs)
  
      /* Assume called function access statics
       */
@@ -245,10 +246,10 @@ index 319d79039..6cb5dd949 100644
          cgstate.accessedTLS = true;
  
 diff --git a/src/dmd/backend/cod3.d b/src/dmd/backend/cod3.d
-index 986c8ebb9..de4fc9b07 100644
+index ae473e067..4668ddbac 100644
 --- a/src/dmd/backend/cod3.d
 +++ b/src/dmd/backend/cod3.d
-@@ -2146,7 +2146,7 @@ void outjmptab(block *b)
+@@ -2115,7 +2115,7 @@ void outjmptab(block *b)
                          break;
                  }
          }
@@ -258,7 +259,7 @@ index 986c8ebb9..de4fc9b07 100644
              if (config.flags3 & CFG3pic)
              {
 diff --git a/src/dmd/backend/code_x86.d b/src/dmd/backend/code_x86.d
-index 8256c7ad7..230a15c62 100644
+index 29f5faf4b..8ddb5bfd0 100644
 --- a/src/dmd/backend/code_x86.d
 +++ b/src/dmd/backend/code_x86.d
 @@ -575,4 +575,3 @@ void getlvalue_msw(code *);
@@ -267,7 +268,7 @@ index 8256c7ad7..230a15c62 100644
  void loadea(ref CodeBuilder cdb, elem *e, code *cs, uint op, uint reg, targ_size_t offset, regm_t keepmsk, regm_t desmsk);
 -
 diff --git a/src/dmd/backend/elfobj.d b/src/dmd/backend/elfobj.d
-index ebb213fa2..4b3a42819 100644
+index debf7e389..8c5755005 100644
 --- a/src/dmd/backend/elfobj.d
 +++ b/src/dmd/backend/elfobj.d
 @@ -84,7 +84,7 @@ static if (1)
@@ -287,8 +288,33 @@ index ebb213fa2..4b3a42819 100644
              ELFOSABI = ELFOSABI_SYSV;
              break;
  
+diff --git a/src/dmd/backend/os.d b/src/dmd/backend/os.d
+index c10f01d69..100ee0556 100644
+--- a/src/dmd/backend/os.d
++++ b/src/dmd/backend/os.d
+@@ -962,6 +962,20 @@ int os_critsecsize64()
+ }
+ }
+ 
++else version(PowerNex)
++{
++int os_critsecsize32()
++{
++    assert(0);
++    return 0;
++}
++
++int os_critsecsize64()
++{
++    return 40;
++}
++}
++
+ /* This is the magic program to get the size on Posix systems:
+ 
+ #if 0
 diff --git a/src/dmd/cli.d b/src/dmd/cli.d
-index 301cc9c5b..2e4b60970 100644
+index c4ac30912..0f03ca389 100644
 --- a/src/dmd/cli.d
 +++ b/src/dmd/cli.d
 @@ -62,6 +62,10 @@ else version(Solaris)
@@ -303,7 +329,7 @@ index 301cc9c5b..2e4b60970 100644
  {
      private enum targetOS = TargetOS.all;
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 3b82725f3..53bf276dd 100644
+index 1a73a5436..ceeb1b863 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
 @@ -30,10 +30,12 @@ enum TargetOS : ubyte
@@ -329,7 +355,7 @@ index 3b82725f3..53bf276dd 100644
  }
  
  enum DiagnosticReporting : ubyte
-@@ -409,7 +412,7 @@ extern (C++) struct Global
+@@ -407,7 +410,7 @@ extern (C++) struct Global
              {
                  obj_ext = "obj";
              }
@@ -338,7 +364,7 @@ index 3b82725f3..53bf276dd 100644
              {
                  obj_ext = "o";
              }
-@@ -421,7 +424,7 @@ extern (C++) struct Global
+@@ -419,7 +422,7 @@ extern (C++) struct Global
              {
                  lib_ext = "lib";
              }
@@ -347,7 +373,7 @@ index 3b82725f3..53bf276dd 100644
              {
                  lib_ext = "a";
              }
-@@ -433,7 +436,7 @@ extern (C++) struct Global
+@@ -431,7 +434,7 @@ extern (C++) struct Global
              {
                  dll_ext = "dll";
              }
@@ -356,7 +382,7 @@ index 3b82725f3..53bf276dd 100644
              {
                  dll_ext = "so";
              }
-@@ -449,7 +452,7 @@ extern (C++) struct Global
+@@ -447,7 +450,7 @@ extern (C++) struct Global
              {
                  run_noext = false;
              }
@@ -366,7 +392,7 @@ index 3b82725f3..53bf276dd 100644
                  // Allow 'script' D source files to have no extension.
                  run_noext = true;
 diff --git a/src/dmd/globals.h b/src/dmd/globals.h
-index 6bc25f758..a8d6d1264 100644
+index fe4e405d5..086c102ed 100644
 --- a/src/dmd/globals.h
 +++ b/src/dmd/globals.h
 @@ -32,10 +32,12 @@ enum
@@ -385,10 +411,10 @@ index 6bc25f758..a8d6d1264 100644
  
  
 diff --git a/src/dmd/json.d b/src/dmd/json.d
-index 396fe9ad5..0894a5817 100644
+index 77394c781..d3157399a 100644
 --- a/src/dmd/json.d
 +++ b/src/dmd/json.d
-@@ -861,6 +861,10 @@ public:
+@@ -867,6 +867,10 @@ public:
                  item("solaris");
                  item("bsd");
              }
@@ -400,7 +426,7 @@ index 396fe9ad5..0894a5817 100644
          arrayEnd();
  
 diff --git a/src/dmd/lib.d b/src/dmd/lib.d
-index c0b079125..e09538775 100644
+index ca39ef0c3..be342060f 100644
 --- a/src/dmd/lib.d
 +++ b/src/dmd/lib.d
 @@ -29,7 +29,7 @@ static if (TARGET.Windows)
@@ -422,10 +448,10 @@ index c0b079125..e09538775 100644
              return LibElf_factory();
          }
 diff --git a/src/dmd/mars.d b/src/dmd/mars.d
-index e4032aff8..c8e3d86a7 100644
+index 2ecacbcf5..3dcaffb3f 100644
 --- a/src/dmd/mars.d
 +++ b/src/dmd/mars.d
-@@ -1193,7 +1193,7 @@ private void setDefaultLibrary()
+@@ -1211,7 +1211,7 @@ private void setDefaultLibrary()
              else
                  global.params.defaultlibname = "phobos";
          }
@@ -434,7 +460,7 @@ index e4032aff8..c8e3d86a7 100644
          {
              global.params.defaultlibname = "libphobos2.a";
          }
-@@ -1235,6 +1235,8 @@ void setTarget(ref Param params)
+@@ -1253,6 +1253,8 @@ void setTarget(ref Param params)
          params.targetOS = TargetOS.Solaris;
      else static if (TARGET.DragonFlyBSD)
          params.targetOS = TargetOS.DragonFlyBSD;
@@ -443,7 +469,7 @@ index e4032aff8..c8e3d86a7 100644
      else
          static assert(0, "unknown TARGET");
  }
-@@ -1321,6 +1323,13 @@ void addDefaultVersionIdentifiers(const ref Param params)
+@@ -1339,6 +1341,13 @@ void addDefaultVersionIdentifiers(const ref Param params)
          VersionCondition.addPredefinedGlobalIdent("ELFv1");
          VersionCondition.addPredefinedGlobalIdent("CppRuntime_Sun");
      }
@@ -457,7 +483,7 @@ index e4032aff8..c8e3d86a7 100644
      else
      {
          assert(0);
-@@ -1799,7 +1808,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -1817,7 +1826,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
              params.dll = true;
          else if (arg == "-fPIC")
          {
@@ -466,7 +492,7 @@ index e4032aff8..c8e3d86a7 100644
              {
                  params.pic = PIC.pic;
              }
-@@ -1810,7 +1819,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -1828,7 +1837,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
          }
          else if (arg == "-fPIE")
          {
@@ -475,7 +501,7 @@ index e4032aff8..c8e3d86a7 100644
              {
                  params.pic = PIC.pie;
              }
-@@ -2277,7 +2286,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
+@@ -2317,7 +2326,7 @@ bool parseCommandLine(const ref Strings arguments, const size_t argc, ref Param
          else if (startsWith(p + 1, "Xcc="))
          {
              // Linking code is guarded by version (Posix):
@@ -484,7 +510,7 @@ index e4032aff8..c8e3d86a7 100644
              {
                  params.linkswitches.push(p + 5);
                  params.linkswitchIsForCC.push(true);
-@@ -2619,7 +2628,7 @@ private void reconcileCommands(ref Param params, size_t numSrcFiles)
+@@ -2659,7 +2668,7 @@ private void reconcileCommands(ref Param params, size_t numSrcFiles)
      {
          params.pic = PIC.pic;
      }
@@ -493,7 +519,7 @@ index e4032aff8..c8e3d86a7 100644
      {
          if (params.lib && params.dll)
              error(Loc.initial, "cannot mix -lib and -shared");
-@@ -2799,7 +2808,7 @@ Module createModule(const(char)* file, ref Strings libmodules)
+@@ -2848,7 +2857,7 @@ Module createModule(const(char)* file, ref Strings libmodules)
          libmodules.push(file);
          return null;
      }
@@ -503,7 +529,7 @@ index e4032aff8..c8e3d86a7 100644
          if (FileName.equals(ext, global.dll_ext))
          {
 diff --git a/src/dmd/target.d b/src/dmd/target.d
-index c64b23348..7c1c1bdf0 100644
+index 35f294a53..95116ed27 100644
 --- a/src/dmd/target.d
 +++ b/src/dmd/target.d
 @@ -144,7 +144,7 @@ extern (C++) struct Target
@@ -524,7 +550,7 @@ index c64b23348..7c1c1bdf0 100644
              {
                  realsize = 16;
                  realpad = 6;
-@@ -935,7 +935,7 @@ struct TargetC
+@@ -952,7 +952,7 @@ struct TargetC
  
      extern (D) void initialize(ref const Param params, ref const Target target)
      {
@@ -533,7 +559,7 @@ index c64b23348..7c1c1bdf0 100644
              longsize = 4;
          else if (params.targetOS == TargetOS.OSX)
              longsize = 4;
-@@ -945,7 +945,7 @@ struct TargetC
+@@ -962,7 +962,7 @@ struct TargetC
              assert(0);
          if (params.is64bit)
          {
@@ -542,18 +568,7 @@ index c64b23348..7c1c1bdf0 100644
                  longsize = 8;
              else if (params.targetOS == TargetOS.OSX)
                  longsize = 8;
-@@ -998,6 +998,10 @@ struct TargetC
-             // sizeof(pthread_mutex_t) for Solaris.
-             return 24;
-         }
-+        else if (params.targetOS == TargetOS.PowerNex)
-+        {
-+            return 40; // TODO: Fix
-+        }
-         assert(0);
-     }
- }
-@@ -1014,7 +1018,7 @@ struct TargetCPP
+@@ -986,7 +986,7 @@ struct TargetCPP
  
      extern (D) void initialize(ref const Param params, ref const Target target)
      {
@@ -562,7 +577,7 @@ index c64b23348..7c1c1bdf0 100644
              twoDtorInVtable = true;
          else if (params.targetOS == TargetOS.OSX)
              twoDtorInVtable = true;
-@@ -1034,7 +1038,7 @@ struct TargetCPP
+@@ -1006,7 +1006,7 @@ struct TargetCPP
       */
      extern (C++) const(char)* toMangle(Dsymbol s)
      {
@@ -571,7 +586,7 @@ index c64b23348..7c1c1bdf0 100644
              return toCppMangleItanium(s);
          else static if (TARGET.Windows)
              return toCppMangleMSVC(s);
-@@ -1051,7 +1055,7 @@ struct TargetCPP
+@@ -1023,7 +1023,7 @@ struct TargetCPP
       */
      extern (C++) const(char)* typeInfoMangle(ClassDeclaration cd)
      {
@@ -581,5 +596,5 @@ index c64b23348..7c1c1bdf0 100644
          else static if (TARGET.Windows)
              return cppTypeInfoMangleMSVC(cd);
 -- 
-2.30.1
+2.30.2
 
