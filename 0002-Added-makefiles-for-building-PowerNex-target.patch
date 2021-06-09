@@ -1,4 +1,4 @@
-From 8a64ff2bb69ce4fb5dbe35445cf084f1131c5486 Mon Sep 17 00:00:00 2001
+From 9a2733b41c222547c2cf24a65ba61382f575435a Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:47:59 +0100
 Subject: [PATCH 2/4] Added makefiles for building PowerNex target
@@ -32,10 +32,10 @@ index 000000000..55517111d
 +
 +.DELETE_ON_ERROR: # GNU Make directive (delete output files on error)
 diff --git a/src/build.d b/src/build.d
-index 7f3922adf..dab9e8f8c 100755
+index dc1272be0..f6b1899b9 100755
 --- a/src/build.d
 +++ b/src/build.d
-@@ -1425,7 +1425,7 @@ bool download(string to, string from, uint tries = 3)
+@@ -1426,7 +1426,7 @@ bool download(string to, string from, uint tries = 3)
  /**
  Detects the host OS.
  
@@ -44,7 +44,7 @@ index 7f3922adf..dab9e8f8c 100755
  */
  string detectOS()
  {
-@@ -1445,6 +1445,8 @@ string detectOS()
+@@ -1446,6 +1446,8 @@ string detectOS()
          return "dragonflybsd";
      else version(Solaris)
          return "solaris";

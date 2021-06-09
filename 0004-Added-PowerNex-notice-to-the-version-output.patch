@@ -1,4 +1,4 @@
-From 2bcd719a1cc2c5863aadb24c0689c53b0b5489f9 Mon Sep 17 00:00:00 2001
+From 733f02d0bc7737cd967743990006069de1dfd728 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output
@@ -9,11 +9,11 @@ Signed-off-by: Dan Printzell <xwildn00bx@gmail.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/dmd/globals.d b/src/dmd/globals.d
-index 5832bd909..20321cf2e 100644
+index 25d436f26..65130c1fb 100644
 --- a/src/dmd/globals.d
 +++ b/src/dmd/globals.d
-@@ -342,12 +342,12 @@ extern (C++) struct Global
-     bool run_noext;                     // allow -run sources without extensions.
+@@ -274,12 +274,12 @@ extern (C++) struct Global
+     const(char)[] inifilename;
  
      string copyright = "Copyright (C) 1999-2021 by The D Language Foundation, All Rights Reserved";
 -    string written = "written by Walter Bright";
