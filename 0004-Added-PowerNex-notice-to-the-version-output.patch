@@ -1,4 +1,4 @@
-From 0a1d2661fc349cf445a1545139c5ae5c5a0480ef Mon Sep 17 00:00:00 2001
+From 2bcd719a1cc2c5863aadb24c0689c53b0b5489f9 Mon Sep 17 00:00:00 2001
 From: Dan Printzell <xwildn00bx@gmail.com>
 Date: Fri, 17 Jan 2020 01:50:08 +0100
 Subject: [PATCH 4/4] Added PowerNex notice to the version output
@@ -28,5 +28,5 @@ index 5832bd909..20321cf2e 100644
  
      const(char)[] vendor;    // Compiler backend name
 -- 
-2.30.2
+2.32.0
 
